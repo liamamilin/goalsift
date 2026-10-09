@@ -13,3 +13,4 @@ httpx==0.28.1
 
 # Dev / test
 pytest==9.0.2
+pytest-asyncio==1.4.0

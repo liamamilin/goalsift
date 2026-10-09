@@ -29,6 +29,9 @@ llm = LLMAdapter()
 search = SearchAdapter()
 controller = Controller(repo, llm, search)
 
+# 04 §9 crash recovery: on startup, recover orphaned RESEARCHING jobs to PAUSED
+_recovered = repo.recover_orphans()
+
 app = FastAPI(title="GoalSift", version="0.2.0a0")
 app.add_middleware(
     CORSMiddleware,
@@ -117,10 +120,25 @@ async def cancel(job_id: str):
     return {"id": job_id, "status": "CANCELLED"}
 
 
+class InputCmd(BaseModel):
+    constraint: str
+
+
 @app.post("/api/jobs/{job_id}/input")
-def input_cmd(job_id: str):
-    # M2: refine not yet; stub returns current state
-    raise HTTPException(501, "refine implemented in M4")
+async def input_cmd(job_id: str, body: InputCmd):
+    """Refine: COMPLETED -> new revision with an added constraint (04 §3.1).
+    Preserves prior revision; invalidates its dependent objects (05 §12)."""
+    job = repo.get_job(job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    if job.status != JobStatus.COMPLETED:
+        raise HTTPException(409, "only COMPLETED jobs can be refined")
+    if not body.constraint.strip():
+        raise HTTPException(400, "empty constraint")
+    ok = await controller.refine(job_id, body.constraint)
+    if not ok:
+        raise HTTPException(409, "refine could not start new revision")
+    return {"id": job_id, "status": "RESEARCHING", "revision": repo.get_job(job_id).current_revision}
 
 
 @app.get("/api/jobs/{job_id}/results")

@@ -9,6 +9,7 @@ readme = "README.md"
 minversion = "8.0"
 testpaths = ["tests"]
 addopts = "-ra -q"
+asyncio_mode = "auto"
 filterwarnings = [
     "error::ResourceWarning",
 ]

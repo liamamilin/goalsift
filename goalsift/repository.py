@@ -399,3 +399,102 @@ class Repository:
     def max_event_rowid(self, job_id: str) -> int:
         r = self._conn.execute("SELECT MAX(rowid) FROM events WHERE job_id=?", (job_id,)).fetchone()
         return r[0] or 0
+
+    # --- M4: crash recovery, revisions, invalidation propagation --------
+
+    def recover_orphans(self) -> list[str]:
+        """On startup: any job in RESEARCHING has no live runner (the process
+        restarted), whether or not active_run_id is set. Per 04 §9, recover to
+        PAUSED so the user can Resume. Returns the recovered job ids."""
+        rows = self._conn.execute(
+            "SELECT id FROM jobs WHERE status='RESEARCHING'"
+        ).fetchall()
+        recovered: list[str] = []
+        for row in rows:
+            jid = row["id"]
+            with self.transaction() as c:
+                c.execute(
+                    "UPDATE jobs SET status='PAUSED', active_run_id=NULL, updated_at=? WHERE id=?",
+                    (_now(), jid),
+                )
+            self.append_event(ResearchEvent(
+                id=new_id("ev"), event_id=new_id("ev"), job_id=jid,
+                revision=1, action_type="FINISH", status="RECOVERED_TO_PAUSED",
+                error="orphaned RESEARCHING run recovered on startup",
+            ))
+            recovered.append(jid)
+        return recovered
+
+    def mark_revision_needs_review(self, job_id: str, revision: int) -> int:
+        """05 §12 invalidation propagation: when a goal/constraint changes,
+        mark dependent Conditions/Assessments/Proposals of `revision` as
+        NEEDS_REVIEW (or SUPERSEDED for proposals). Returns count touched."""
+        n = 0
+        with self.transaction() as c:
+            c.execute(
+                "UPDATE conditions SET validity_status='NEEDS_REVIEW', updated_at=? "
+                "WHERE job_id=? AND revision_created=?",
+                (_now(), job_id, revision),
+            )
+            n += c.total_changes
+            c.execute(
+                "UPDATE assessments SET review_status='NEEDS_REVIEW', updated_at=? "
+                "WHERE job_id=? AND revision_evaluated=?",
+                (_now(), job_id, revision),
+            )
+            n += c.total_changes
+            c.execute(
+                "UPDATE proposals SET validity_status='NEEDS_REVIEW', updated_at=? "
+                "WHERE job_id=? AND revision_created=?",
+                (_now(), job_id, revision),
+            )
+            n += c.total_changes
+        return n
+
+    def new_revision(self, job_id: str) -> int:
+        """Start a new research revision (Refine). Preserves all prior data;
+        only bumps current_revision and status. Caller propagates invalidation
+        on the OLD revision before running the new one."""
+        job = self.get_job(job_id)
+        if not job:
+            raise ValueError("job not found")
+        old_rev = job.current_revision
+        # invalidate old revision's dependent objects
+        self.mark_revision_needs_review(job_id, old_rev)
+        new_rev = old_rev + 1
+        with self.transaction() as c:
+            c.execute(
+                "UPDATE jobs SET current_revision=?, status='RESEARCHING', "
+                "active_run_id=NULL, updated_at=? WHERE id=?",
+                (new_rev, _now(), job_id),
+            )
+        self.append_event(ResearchEvent(
+            id=new_id("ev"), event_id=new_id("ev"), job_id=job_id,
+            revision=new_rev, action_type="REASON", status="REFINED",
+            related_object_ids=[str(old_rev)],
+        ))
+        return new_rev
+
+    def add_constraint(self, job_id: str, text: str) -> None:
+        """Append a user constraint to the current goal revision (used by Refine).
+        Creates a fresh goal row for the new revision if needed."""
+        job = self.get_job(job_id)
+        if not job:
+            return
+        goal = self.get_goal(job_id)
+        new_constraints = list((goal.constraints if goal else []))
+        new_constraints.append({"text": text, "provenance": "USER_STATED"})
+        gid = goal.id if goal else new_id("goal")
+        g = Goal(
+            id=gid if not goal else new_id("goal"),
+            job_id=job_id,
+            statement=goal.statement if goal else text,
+            purpose=goal.purpose if goal else None,
+            original_user_text=goal.original_user_text if goal else text,
+            requirements=goal.requirements if goal else [],
+            constraints=new_constraints,
+            assumptions=goal.assumptions if goal else [],
+            open_questions=goal.open_questions if goal else [],
+            revision=job.current_revision,
+        )
+        self.save_goal(g)

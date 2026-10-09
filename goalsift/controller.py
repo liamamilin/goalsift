@@ -63,6 +63,28 @@ class Controller:
             error=extra.get("error"),
         )
 
+    def _stopped(self, job_id: str) -> bool:
+        """True if the job has been paused/cancelled (no active run should proceed)."""
+        job = self.repo.get_job(job_id)
+        if not job:
+            return True
+        return job.status in (JobStatus.PAUSED, JobStatus.CANCELLED)
+
+    async def refine(self, job_id: str, constraint: str) -> bool:
+        """COMPLETED -> new revision with an added constraint (04 §3.1, 05 §12).
+        Preserves prior revision; invalidates its dependent objects."""
+        job = self.repo.get_job(job_id)
+        if not job or job.status != JobStatus.COMPLETED:
+            return False
+        new_rev = self.repo.new_revision(job_id)          # COMPLETED->RESEARCHING + invalidates old
+        self.repo.add_constraint(job_id, constraint)      # adds to goal
+        self.repo.append_event(self._ev(
+            job_id, new_rev, "ASK_USER", "REFINE_RECEIVED",
+            refs=[], usage={"constraint": constraint},
+        ))
+        # begin the new revision's research (status already RESEARCHING)
+        return await self._schedule_run(job_id, new_rev)
+
     async def start(self, job_id: str) -> bool:
         """Begin research in the background. Returns False if already running."""
         job = self.repo.get_job(job_id)
@@ -78,12 +100,21 @@ class Controller:
             validate_transition(JobStatus(job.status), JobStatus.RESEARCHING)
         except ValidationError:
             return False
+        self.repo.set_job_status(job_id, JobStatus.RESEARCHING.value)
+        return await self._schedule_run(job_id, job.current_revision)
+
+    async def _schedule_run(self, job_id: str, revision: int) -> bool:
+        """Create the background run (assumes status already RESEARCHING).
+        Enforces single executor via active_run_id (04 §3.2)."""
+        job = self.repo.get_job(job_id)
+        if not job or job.active_run_id:
+            return False
         run_id = new_id("run")
         self.repo.set_job_status(job_id, JobStatus.RESEARCHING.value, active_run_id=run_id)
-        self.repo.append_event(self._ev(job_id, job.current_revision, "REASON", "RESEARCHING", refs=[run_id]))
-        task = asyncio.create_task(self._run(job_id, run_id, job.current_revision))
+        self.repo.append_event(self._ev(job_id, revision, "REASON", "RESEARCHING", refs=[run_id]))
+        task = asyncio.create_task(self._run(job_id, run_id, revision))
         self._runs[job_id] = task
-        return True  # noqa: B019
+        return True
 
     async def _run(self, job_id: str, run_id: str, revision: int) -> None:
         try:
@@ -182,6 +213,8 @@ class Controller:
                 ))
 
             # --- Discover ---
+            if self._stopped(job_id):
+                return
             results, meta = await self.search.search(goal_text, num=4)
             fetched_urls: set[str] = set()
             resources: list[Resource] = []
@@ -280,6 +313,8 @@ class Controller:
             ))
 
             # --- Match ---
+            if self._stopped(job_id):
+                return
             res_dicts = [{"name": r.name, "url": r.canonical_source,
                           "license": r.license_claim or "UNKNOWN",
                           "text": r.description} for r in resources]
@@ -346,6 +381,8 @@ class Controller:
             ))
 
             # --- Propose ---
+            if self._stopped(job_id):
+                return
             draft = await self.llm.draft_proposal(
                 goal_text,
                 [{"name": r.name, "url": r.canonical_source,

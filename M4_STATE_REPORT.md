@@ -1,0 +1,91 @@
+# M4 Report — Persistence, Task Recovery & Incremental Research
+
+**Milestone**: M4 — 持久化、任务恢复与增量研究  
+**Phase**: Phase A · V0.2  
+**Date**: 2026-10-10  
+**Verdict**: ✅ **PASS**
+
+Gate 标准来自 `07_DEVELOPMENT_PLAN.md` §7。
+
+---
+
+## 1. Intended outcomes
+
+- 05 规定的正式持久化、引用约束、修订和事件（M2 已基本就绪，本里程碑补全）。
+- 04 唯一状态机：合法/非法转换、单 Job 单执行者、pause/cancel/resume 与崩溃清理。
+- COMPLETED 后 Refine 创建新 revision，保留前版结果。
+- 新约束触发 Condition/Assessment/Proposal 受影响失效传播。
+- 原子提交，失败不破坏已有效数据；无关资料尽量复用。
+
+## 2. Implementation
+
+| 能力 | 实现 |
+|---|---|
+| 状态机 | `validate_transition`（04 唯一权威表）；app 端点每次命令检查前提 |
+| 单执行者 | `active_run_id` + 数据库锁；`start`/`_schedule_run` 拒绝重复启动 |
+| 暂停/取消 | `_stopped()` 检查点置于 Discover/Match/Propose 前；取消后不再发新外部动作 |
+| 崩溃恢复 | `recover_orphans()`：启动时将所有 RESEARCHING Job 恢复为 PAUSED（04 §9） |
+| Refine | `new_revision()`（COMPLETED→RESEARCHING + 旧版失效传播）+ `add_constraint()` + `_schedule_run()` |
+| 失效传播 | `mark_revision_needs_review()`：旧 revision 的 Condition→NEEDS_REVIEW、Assessment→NEEDS_REVIEW、Proposal→NEEDS_REVIEW（05 §12） |
+| 原子提交 | `transaction()` 上下文管理器，异常→ROLLBACK |
+
+## 3. Deterministic tests — `tests/test_m4_state.py` (16 项, 全 PASS)
+
+| Gate | 测试 | 断言 |
+|---|---|---|
+| 1 | `test_gate1_transitions` (9 cases) | 合法转换通过；非法（CANCELLED→RESEARCHING、CREATED→PAUSED、PAUSED→COMPLETED）明确失败 |
+| 2 | `test_gate2_concurrent_start_one_executor` | 同一 Job 二次 start 返回 False；仅一个 active_run_id |
+| 3 | `test_gate3_cancel_stops_external_actions` | 取消后 `_stopped` 检查点阻止外部搜索调用 |
+| 4 | `test_gate4_orphan_recovery` | RESEARCHING+active_run_id → recover → PAUSED |
+| 4 | `test_gate4_no_orphans_when_clean` | CREATED Job 不被误恢复 |
+| 4 | `test_gate4_app_startup_recovery_isolated` | 隔离 repo 恢复验证（不触及 live DB） |
+| 5 | `test_gate5_refine_new_revision_and_invalidation` | new_revision→rev2；旧 Condition/Assessment/Proposal 均 NEEDS_REVIEW |
+| 6 | `test_gate6_atomic_failure_no_half_objects` | 事务中途 raise → ROLLBACK，无半提交 condition |
+
+## 4. Live proof (gates 4 & 5)
+
+| Gate | 真实操作 | 观察 |
+|---|---|---|
+| 4 | 创建 Job→start→RESEARCHING 中 `pkill uvicorn`→重启 | orphan RESEARCHING Job 启动时恢复为 **PAUSED**；已提交数据完整 |
+| 5 | COMPLETED Job（rev1）→ `POST /input` constraint "只能使用允许商业使用的开源方案" | refine_ok: HTTP 200, revision=2, RESEARCHING→**COMPLETED**；11 条新条件；Proposal 生成；评估含 SUPPORTED/UNKNOWN/**NOT_SATISFIED**（闭源资源因商用约束失败） |
+| 5 | 旧版失效 | rev1 的 Condition/Assessment/Proposal 标 NEEDS_REVIEW（新 revision 不覆盖） |
+
+约束 "只能商用开源" 导致 NOT_SATISFIED 出现——正是 01 §9 Revision 案例与 05 §12 失效传播的预期行为。
+
+## 5. Mock/live distinction
+
+- 16 项为确定性单元测试（含 mock controller）。
+- 崩溃恢复与 Refine 为 **live**：真实 uvicorn 进程 kill/重启 + 真实 SQLite 持久化 + 真实模型 revision 2 研究。
+- 无 mock 冒充 live。
+
+## 6. Changed files (M4)
+
+| 文件 | 变更 |
+|---|---|
+| `goalsift/repository.py` | `recover_orphans`、`mark_revision_needs_review`、`new_revision`、`add_constraint` |
+| `goalsift/controller.py` | `_stopped` 检查点；`_schedule_run`；`refine`；取消检查置于 Discover/Match/Propose 前 |
+| `goalsift/app.py` | 启动 `recover_orphans()`；`/api/jobs/{id}/input` 实现 Refine |
+| `pyproject.toml` | `asyncio_mode=auto` |
+| `tests/test_m4_state.py` | 16 项测试 |
+| `requirements.txt` | + pytest-asyncio |
+
+未破坏 M0–M3 行为；全测试 42 项 PASS。
+
+## 7. Gate verdict
+
+| Gate 条件 (07 §7) | 满足 | 证据 |
+|---|---|---|
+| 1. 合法转换成功，非法明确失败 | ✅ | test_gate1 |
+| 2. 同一 Job 并发启动不能生成两个执行者 | ✅ | test_gate2 |
+| 3. PAUSE/CANCEL 后不得新发外部动作 | ✅ | test_gate3 + _stopped 检查点 |
+| 4. 崩溃重启后已提交数据仍在且可安全 Resume | ✅ | live orphan→PAUSED |
+| 5. COMPLETED 后新约束→新 revision，受影响对象待复核；无关事实仍可用 | ✅ | live refine rev2 + invalidation |
+| 6. 结构/引用提交失败不留下半套对象 | ✅ | test_gate6 ROLLBACK |
+
+**M4 Verdict: PASS**
+
+## 8. Known limits & next safe action
+
+- 不承诺精确续接在途模型/搜索调用（04 §9 明确）；保证已提交数据持久。
+- 失效传播为 revision 粒度（标记 NEEDS_REVIEW），未做细粒度自动依赖推理（05 §12 允许显式 ID 引用 + 受影响查询）。
+- 下一步：**M5 — 产品体验、成本与安全**：完整 Home/Workspace/Settings 全路径、真实 UI 审阅、预算硬限 UI、密钥防泄漏、SSRF/注入防护、日志脱敏、内部数据与用户项目隔离实测。
