@@ -9,6 +9,7 @@ export interface GoalBrief {
   statement: string;
   original_user_text: string;
   revision: number;
+  open_questions?: string[];
 }
 
 export interface Condition {
@@ -105,6 +106,16 @@ export async function cancelJob(id: string): Promise<void> {
   if (!r.ok && r.status !== 409) throw new Error(`cancel failed: ${r.status}`);
 }
 
+export async function sendInput(id: string, text: string): Promise<void> {
+  /** Refine (COMPLETED) or answer a clarifying question (NEEDS_INPUT). */
+  const r = await fetch(`${API}/api/jobs/${id}/input`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ constraint: text }),
+  });
+  if (!r.ok) throw new Error(`input failed: ${r.status} ${await r.text()}`);
+}
+
 export function exportUrl(id: string, fmt: "markdown" | "json"): string {
   return `${API}/api/jobs/${id}/export?fmt=${fmt}`;
 }
@@ -128,13 +139,22 @@ export async function getSettings(): Promise<Settings> {
   return r.json();
 }
 
+export interface UsageSnapshot {
+  actions?: number;
+  tool_calls?: number;
+  cost_usd?: number;
+  elapsed_seconds?: number;
+  stopped_reason?: string | null;
+  [k: string]: unknown;
+}
+
 export interface EventItem {
   event_id?: string;
   event_type: string;
   status?: string;
   timestamp?: string;
   error?: string;
-  usage?: Record<string, unknown>;
+  usage?: UsageSnapshot;
   tool?: string;
 }
 

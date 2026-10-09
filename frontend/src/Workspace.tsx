@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  cancelJob, exportUrl, getJob, startJob, subscribeEvents,
+  cancelJob, exportUrl, getJob, sendInput, startJob, subscribeEvents,
   type EventItem, type JobResult,
 } from "./api";
 
@@ -15,10 +15,18 @@ const STATUS_COLOR: Record<string, string> = {
   COMPLETED: "completed", CANCELLED: "cancelled",
 };
 
+const STATE_BANNER: Record<string, string> = {
+  PARTIAL: "预算/工具/资料不足，结果不完整 — 可补充配置后继续。",
+  FAILED: "研究出错 — 可查看事件中的错误并重试。",
+  NEEDS_INPUT: "需要你的输入才能继续 — 请回答下方问题。",
+};
+
 export function Workspace({ jobId, onBack }: WorkspaceProps) {
   const [job, setJob] = useState<JobResult | null>(null);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [inputText, setInputText] = useState("");
+  const [sending, setSending] = useState(false);
   const stopRef = useRef<null | (() => void)>(null);
 
   const load = () => getJob(jobId).then(setJob).catch((e) => setErr(String(e)));
@@ -40,8 +48,20 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
   const cancel = async () => {
     try { await cancelJob(jobId); await load(); } catch (e) { setErr(String(e)); }
   };
+  const submitInput = async () => {
+    if (!inputText.trim()) return;
+    setSending(true); setErr(null);
+    try {
+      await sendInput(jobId, inputText);
+      setInputText("");
+      await load();
+    } catch (e) { setErr(String(e)); }
+    finally { setSending(false); }
+  };
 
   const running = job?.status === "RESEARCHING";
+  // latest usage snapshot from events (budget panel)
+  const lastUsage = [...events].reverse().find((e) => e.usage && Object.keys(e.usage).length);
 
   return (
     <div className="workspace">
@@ -54,10 +74,30 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
 
       {err && <div className="error">{err}</div>}
 
+      {job?.status && STATE_BANNER[job.status] && (
+        <div className={`state-banner ${STATUS_COLOR[job.status]}`}>{STATE_BANNER[job.status]}</div>
+      )}
+
+      {lastUsage?.usage && (
+        <div className="budget-panel">
+          <span>actions: {String(lastUsage.usage.actions ?? "?")}</span>
+          <span>tool calls: {String(lastUsage.usage.tool_calls ?? "?")}</span>
+          {lastUsage.usage.cost_usd != null && <span>cost $: {String(lastUsage.usage.cost_usd)}</span>}
+          {lastUsage.usage.elapsed_seconds != null && <span>elapsed s: {String(lastUsage.usage.elapsed_seconds)}</span>}
+          {lastUsage.usage.stopped_reason ? <span className="error-inline">stopped: {String(lastUsage.usage.stopped_reason)}</span> : null}
+        </div>
+      )}
+
       <section className="goal">
         <h2>Goal</h2>
         <p className="orig">“{job?.original_request}”</p>
         <p className="muted">revision {job?.revision}</p>
+        {job?.goal?.open_questions && job.goal.open_questions.length > 0 && (
+          <div className="open-questions">
+            <strong>需要澄清：</strong>
+            <ul>{job.goal.open_questions.map((q, i) => <li key={i}>{q}</li>)}</ul>
+          </div>
+        )}
       </section>
 
       <div className="controls">
@@ -66,6 +106,25 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
         )}
         {running && <button className="danger" onClick={cancel}>Cancel</button>}
       </div>
+
+      {(job?.status === "NEEDS_INPUT" || job?.status === "COMPLETED") && (
+        <section className="input-section">
+          <h3>{job?.status === "NEEDS_INPUT" ? "回答澄清问题" : "继续研究（Refine）"}</h3>
+          <textarea
+            placeholder={job?.status === "NEEDS_INPUT"
+              ? "回答上方问题，或说明在何种假设下继续…"
+              : "追加约束，如：只能使用允许商业使用的开源方案"}
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            rows={2}
+          />
+          <div className="row">
+            <button onClick={submitInput} disabled={sending || !inputText.trim()}>
+              {sending ? "提交中…" : (job?.status === "NEEDS_INPUT" ? "提交回答" : "提交新约束")}
+            </button>
+          </div>
+        </section>
+      )}
 
       {events.length > 0 && (
         <section>
