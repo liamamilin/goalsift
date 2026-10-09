@@ -35,6 +35,21 @@ python3 -m pip install -e ".[dev]" 2>/dev/null || python3 -m pip install pytest
 python3 -m pytest
 ```
 
+## Run the app (M2 vertical slice)
+
+```bash
+# 1. backend (loopback, port 8000)
+cp .env.example .env   # fill LLM + search keys (M1 live tests need them)
+python3 -m pip install -r requirements.txt
+python3 -m uvicorn goalsift.app:app --host 127.0.0.1 --port 8000
+
+# 2. frontend (port 5173)
+cd frontend && npm install && npm run dev
+# open http://localhost:5173
+```
+
+Both servers bind to loopback only; the browser never holds model/search keys.
+
 ## Configuration
 
 Copy `.env.example` to `.env` and fill in real values. `.env` is gitignored.
