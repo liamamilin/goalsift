@@ -46,6 +46,19 @@ class MatchSet(BaseModel):
     matches: list[ResourceMatch]
 
 
+class ChallengeFinding(BaseModel):
+    """One counterexample finding from the Challenge operation."""
+    kind: str = Field(description="completeness / necessity / consistency")
+    target_condition: str
+    finding: str
+    recommendation: str = Field(description="keep / mark_optional / supersede / add_condition")
+
+
+class ChallengeReport(BaseModel):
+    findings: list[ChallengeFinding]
+    revised: bool = False
+
+
 class ProposalDraft(BaseModel):
     title: str
     summary: str
@@ -98,6 +111,21 @@ class LLMAdapter:
             ),
             output_type=ProposalDraft,
         )
+        self._challenge_agent = Agent(
+            _model(),
+            system_prompt=(
+                "You challenge a condition model (02 §4.3). Run three checks:\n"
+                "1. COMPLETENESS: if all conditions were satisfied, could the goal still "
+                "fail for a reasonable reason not covered? Add the missing condition.\n"
+                "2. NECESSITY: is any REQUIRED condition actually not necessary — could the "
+                "goal still be met without it via another path? Mark it optional.\n"
+                "3. CONSISTENCY: do any conditions conflict or smuggle a specific "
+                "implementation (React/REST) as a universal necessity? Supersede or revise.\n"
+                "Return concrete findings with a recommendation per condition. Be honest; "
+                "'keep' is valid when no real counterexample exists."
+            ),
+            output_type=ChallengeReport,
+        )
 
     async def derive_conditions(self, goal_text: str) -> list[ConditionSpec]:
         r = await self._cond_agent.run(f"Goal: {goal_text}")
@@ -133,4 +161,18 @@ class LLMAdapter:
             + "\n".join(f"- {m.condition_statement} | {m.resource_name} | {m.status} | {m.explanation}" for m in matches)
         )
         r = await self._propose_agent.run(prompt + "\n\nDraft ONE candidate proposal reusing the best resource.")
+        return r.output
+
+    async def challenge_conditions(
+        self, goal_text: str, conditions: list[dict[str, Any]]
+    ) -> "ChallengeReport":
+        """02 §4.3 Challenge: completeness/necessity/consistency counterexamples."""
+        prompt = (
+            f"Goal: {goal_text}\n\nCurrent condition model:\n"
+            + "\n".join(
+                f"- [{c['obligation']}/{c['dimension']}] {c['statement']}" for c in conditions
+            )
+            + "\n\nChallenge this model. Return findings with a per-condition recommendation."
+        )
+        r = await self._challenge_agent.run(prompt)
         return r.output

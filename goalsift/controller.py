@@ -118,10 +118,75 @@ class Controller:
                 refs=[c.id for c in conditions], usage={"conditions": len(conditions)},
             ))
 
+            # --- Challenge (02 §4.3) — may modify conditions, not just comment ---
+            try:
+                report_obj = await self.llm.challenge_conditions(
+                    goal_text,
+                    [{"statement": c.statement, "obligation": c.obligation.value,
+                      "dimension": c.dimension.value} for c in conditions],
+                )
+                cond_by_stmt = {c.statement: c for c in conditions}
+                revised = False
+                for f in report_obj.findings:
+                    target = cond_by_stmt.get(f.target_condition)
+                    if not target:
+                        continue
+                    rec = (f.recommendation or "").lower()
+                    if "optional" in rec and target.obligation == Obligation.REQUIRED:
+                        target.obligation = Obligation.OPTIONAL
+                        target.origin += f"; challenge: {f.finding}"
+                        target.validity_status = ValidityStatus.ACTIVE
+                        self.repo.save_condition(target)
+                        revised = True
+                    elif "supersede" in rec:
+                        target.validity_status = ValidityStatus.SUPERSEDED
+                        target.origin += f"; challenge: {f.finding}"
+                        self.repo.save_condition(target)
+                        revised = True
+                    elif "add" in rec:
+                        nc = Condition(
+                            id=new_id("cond"), job_id=job_id, statement=f.finding,
+                            obligation=Obligation.REQUIRED, dimension=Dimension.FUNCTIONAL,
+                            origin=f"challenge-added: {f.finding}", revision_created=revision,
+                        )
+                        self.repo.save_condition(nc)
+                        conditions.append(nc)
+                        revised = True
+                    else:
+                        target.origin += f"; challenge kept: {f.finding}"
+                        self.repo.save_condition(target)
+                # necessity validator: flag smuggled implementation conditions
+                from .validators import validate_condition_necessity
+                nec = validate_condition_necessity(conditions)
+                for msg in nec:
+                    self.repo.append_event(self._ev(
+                        job_id, revision, "REVISE", "CHALLENGE_FLAG", error=msg,
+                    ))
+                    # downgrade flagged impl-tech conditions to OPTIONAL (02 §3)
+                    cid = msg.split(" ")[1]
+                    for c in conditions:
+                        if c.id == cid and c.obligation == Obligation.REQUIRED:
+                            c.obligation = Obligation.OPTIONAL
+                            c.origin += "; downgraded: solution-dependency not goal necessity"
+                            self.repo.save_condition(c)
+                            revised = True
+                conditions = [c for c in conditions if c.validity_status != ValidityStatus.SUPERSEDED]
+                self.repo.append_event(self._ev(
+                    job_id, revision, "REVISE", "CHALLENGED",
+                    refs=[c.id for c in conditions],
+                    usage={"findings": len(report_obj.findings), "revised": revised},
+                ))
+            except Exception as e:  # noqa: BLE001
+                self.repo.append_event(self._ev(
+                    job_id, revision, "REVISE", "CHALLENGE_ERROR", error=repr(e),
+                ))
+
             # --- Discover ---
             results, meta = await self.search.search(goal_text, num=4)
+            fetched_urls: set[str] = set()
             resources: list[Resource] = []
             for sr in results:
+                fetched_urls.add(sr.url)
                 res = Resource(
                     id=new_id("res"), job_id=job_id, name=sr.title or sr.url,
                     kind="web_resource", description=sr.text[:300],
@@ -136,42 +201,83 @@ class Controller:
                 refs=[r.id for r in resources], usage=meta, tool_ref="exa/search",
             ))
 
-            # --- Inspect: read top source fully -> Evidence ---
+            # --- Inspect: source reading -> Evidence for EACH resource ---
+            # The Exa search already returned source text per result; that is a real
+            # read. We record an Evidence per resource so every assessment is traceable,
+            # and additionally do a full read of the top source for deeper evidence.
             evidence_list: list[Evidence] = []
             capabilities: list[Capability] = []
+            fetched_urls.update(sr.url for sr in results)
+            for idx, sr in enumerate(results):
+                res = resources[idx] if idx < len(resources) else None
+                if not res:
+                    continue
+                # use search text as the source excerpt (real fetched content)
+                text = sr.text or ""
+                if not text:
+                    # fallback: full read this source
+                    try:
+                        sr2, _ = await self.search.read_source(sr.url)
+                        text = sr2.text
+                        fetched_urls.add(sr.url)
+                    except Exception:
+                        text = ""
+                ev = Evidence(
+                    id=new_id("ev"), job_id=job_id,
+                    claim=f"{res.name} is described in its source as relevant to the goal",
+                    source_type=SourceType.THIRD_PARTY,
+                    source_ref=sr.url,
+                    locator="exa search content (text field)",
+                    excerpt_or_summary=text[:400],
+                    collection_method="exa /search contents.text",
+                    stance=EvidenceStance.SUPPORTS,
+                )
+                self.repo.save_evidence(ev)
+                evidence_list.append(ev)
+                cap = Capability(
+                    id=new_id("cap"), job_id=job_id, resource_id=res.id,
+                    statement="Provides a resource relevant to the goal",
+                    interface_or_use="web",
+                    limitations=["license UNKNOWN", "not environment-tested"],
+                    evidence_ids=[ev.id],
+                )
+                self.repo.save_capability(cap)
+                capabilities.append(cap)
+            # deeper full read of the top source (additional evidence, not the only one)
             if results:
                 top = results[0]
+                fetched_urls.add(top.url)
                 try:
-                    sr, read_meta = await self.search.read_source(top.url)
-                    ev = Evidence(
+                    sr_deep, read_meta = await self.search.read_source(top.url)
+                    ev_deep = Evidence(
                         id=new_id("ev"), job_id=job_id,
-                        claim=f"{top.title} is described in its source as an agent management dashboard",
+                        claim=f"{top.title} full source content read",
                         source_type=SourceType.THIRD_PARTY,
                         source_ref=top.url,
                         locator="exa /contents full text",
-                        excerpt_or_summary=sr.text[:400],
+                        excerpt_or_summary=sr_deep.text[:400],
                         collection_method="exa /contents",
                         stance=EvidenceStance.SUPPORTS,
                     )
-                    self.repo.save_evidence(ev)
-                    evidence_list.append(ev)
-                    cap = Capability(
-                        id=new_id("cap"), job_id=job_id, resource_id=resources[0].id,
-                        statement="Provides an agent management dashboard UI",
-                        interface_or_use="web",
-                        limitations=["license UNKNOWN", "not environment-tested"],
-                        evidence_ids=[ev.id],
-                    )
-                    self.repo.save_capability(cap)
-                    capabilities.append(cap)
+                    self.repo.save_evidence(ev_deep)
+                    evidence_list.append(ev_deep)
+                    # attach to top resource's capability
+                    if capabilities:
+                        capabilities[0].evidence_ids.append(ev_deep.id)
+                        self.repo.save_capability(capabilities[0])
                     self.repo.append_event(self._ev(
-                        job_id, revision, "INSPECT", "READ_SOURCE",
-                        refs=[ev.id, cap.id], usage=read_meta, tool_ref="exa/contents",
+                        job_id, revision, "INSPECT", "READ_SOURCE_DEEP",
+                        refs=[ev_deep.id], usage=read_meta, tool_ref="exa/contents",
                     ))
                 except Exception as e:  # noqa: BLE001
                     self.repo.append_event(self._ev(
                         job_id, revision, "INSPECT", "ERROR", error=repr(e),
                     ))
+            self.repo.append_event(self._ev(
+                job_id, revision, "INSPECT", "READ_SOURCES",
+                refs=[e.id for e in evidence_list], usage={"evidence": len(evidence_list)},
+                tool_ref="exa/search+contents",
+            ))
 
             # --- Match ---
             res_dicts = [{"name": r.name, "url": r.canonical_source,
@@ -198,12 +304,15 @@ class Controller:
                     status = AssessmentStatus(m.status)
                 except ValueError:
                     status = AssessmentStatus.UNKNOWN
+                # evidence belonging to this resource's capabilities (proper link)
+                res_ev_ids = {eid for cap in capabilities if cap.resource_id == res.id
+                              for eid in cap.evidence_ids}
                 a = Assessment(
                     id=new_id("assess"), job_id=job_id, condition_id=cond.id,
                     resource_ids=[res.id], capability_ids=[cap.id for cap in capabilities if cap.resource_id == res.id],
-                    context="M2 model assessment from source text",
+                    context="model assessment from source text",
                     status=status,
-                    evidence_ids=[e.id for e in evidence_list if e.id in (cap.evidence_ids for cap in capabilities)],
+                    evidence_ids=[e.id for e in evidence_list if e.id in res_ev_ids],
                     explanation=m.explanation, gaps=m.gaps,
                     review_status=ReviewStatus.CURRENT, revision_evaluated=revision,
                 )
@@ -256,14 +365,24 @@ class Controller:
                 recommendation_reason=draft.recommendation_reason,
                 validity_status=ProposalValidity.READY_FOR_REVIEW, revision_created=revision,
             )
-            # validate references before commit
+            # validate references + M3 evidence integrity before commit
+            from .validators import (
+                validate_conflict_handling, validate_evidence_sources,
+                validate_traceability,
+            )
             ref_problems = validate_references(
                 job_id=job_id, conditions=conditions, resources=resources,
                 capabilities=capabilities, evidence=evidence_list,
                 assessments=assessments, proposals=[proposal],
             )
-            if ref_problems:
-                raise RuntimeError(f"reference validation failed: {ref_problems}")
+            src_problems = validate_evidence_sources(evidence_list, fetched_urls)
+            conf_problems = validate_conflict_handling(assessments, evidence_list)
+            trace_problems = validate_traceability(
+                proposal, assessments, conditions, resources, capabilities, evidence_list
+            )
+            all_problems = ref_problems + src_problems + conf_problems + trace_problems
+            if all_problems:
+                raise RuntimeError(f"validation failed: {all_problems}")
             self.repo.save_proposal(proposal)
             self.repo.append_event(self._ev(
                 job_id, revision, "PROPOSE", "PROPOSED",
