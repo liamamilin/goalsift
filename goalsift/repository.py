@@ -476,25 +476,23 @@ class Repository:
         return new_rev
 
     def add_constraint(self, job_id: str, text: str) -> None:
-        """Append a user constraint to the current goal revision (used by Refine).
-        Creates a fresh goal row for the new revision if needed."""
+        """Append a user constraint to the current goal revision (used by Refine
+        and NEEDS_INPUT answers). Updates the existing goal in place so
+        get_goal reflects the clarification immediately."""
         job = self.get_job(job_id)
         if not job:
             return
         goal = self.get_goal(job_id)
-        new_constraints = list((goal.constraints if goal else []))
-        new_constraints.append({"text": text, "provenance": "USER_STATED"})
-        gid = goal.id if goal else new_id("goal")
-        g = Goal(
-            id=gid if not goal else new_id("goal"),
-            job_id=job_id,
-            statement=goal.statement if goal else text,
-            purpose=goal.purpose if goal else None,
-            original_user_text=goal.original_user_text if goal else text,
-            requirements=goal.requirements if goal else [],
-            constraints=new_constraints,
-            assumptions=goal.assumptions if goal else [],
-            open_questions=goal.open_questions if goal else [],
-            revision=job.current_revision,
-        )
-        self.save_goal(g)
+        if goal:
+            new_constraints = list(goal.constraints)
+            new_constraints.append({"text": text, "provenance": "USER_STATED"})
+            goal.constraints = new_constraints
+            goal.updated_at = datetime.now(timezone.utc)
+            self.save_goal(goal)  # INSERT OR REPLACE on same id -> in-place update
+        else:
+            g = Goal(
+                id=new_id("goal"), job_id=job_id, statement=text,
+                original_user_text=text, revision=job.current_revision,
+                constraints=[{"text": text, "provenance": "USER_STATED"}],
+            )
+            self.save_goal(g)

@@ -9,7 +9,9 @@ Paradigm: **Define → Derive → Challenge → Discover → Match → Propose**
 
 ## Status
 
-Phase A · Milestone M0 (safe baseline) — see `M0_REPORT.md`.
+✅ **Phase A complete** — all milestones M0–M6 PASS. See `FINAL_ACCEPTANCE_REPORT.md`.
+
+Milestone reports: `M0_REPORT.md` … `M5_PRODUCT_REPORT.md`, `FINAL_ACCEPTANCE_REPORT.md`.
 
 ## Specs
 
@@ -49,6 +51,13 @@ cd frontend && npm install && npm run dev
 ```
 
 Both servers bind to loopback only; the browser never holds model/search keys.
+
+## Limitations
+
+- Visual/UX quality is judged by **human review** (the spec forbids faking automated aesthetic proof).
+- Phase A **does not execute** selected production plans (Phase B is future work).
+- Mainly covers software/digital-production resources; professional on-site fields expose their limits.
+- See `FINAL_ACCEPTANCE_REPORT.md` §9 for the full known-limits list.
 
 ## Configuration
 

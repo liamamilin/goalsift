@@ -85,6 +85,18 @@ class Controller:
         # begin the new revision's research (status already RESEARCHING)
         return await self._schedule_run(job_id, new_rev)
 
+    async def answer_input(self, job_id: str, answer: str) -> bool:
+        """NEEDS_INPUT -> record the user's clarifying answer and resume (04 §3)."""
+        job = self.repo.get_job(job_id)
+        if not job or job.status != JobStatus.NEEDS_INPUT:
+            return False
+        self.repo.add_constraint(job_id, f"[clarification] {answer}")
+        self.repo.append_event(self._ev(
+            job_id, job.current_revision, "ASK_USER", "INPUT_ANSWERED",
+            usage={"answer": answer},
+        ))
+        return await self._schedule_run(job_id, job.current_revision)
+
     async def start(self, job_id: str) -> bool:
         """Begin research in the background. Returns False if already running."""
         job = self.repo.get_job(job_id)
@@ -123,16 +135,54 @@ class Controller:
             job = self.repo.get_job(job_id)
             assert job is not None
             goal_text = job.original_request
+            existing_goal = self.repo.get_goal(job_id)
+            # enrich with any clarifying constraints collected via NEEDS_INPUT answers
+            if existing_goal and existing_goal.constraints:
+                clar = [
+                    c["text"] for c in existing_goal.constraints
+                    if isinstance(c, dict) and c.get("text")
+                    and c["text"] != job.original_request
+                ]
+                if clar:
+                    goal_text = job.original_request + " | Clarifications: " + "; ".join(clar)
 
             # --- Define ---
-            goal = Goal(
-                id=new_id("goal"), job_id=job_id, statement=goal_text,
-                purpose=None, original_user_text=goal_text, revision=revision,
-                constraints=[{"text": goal_text, "provenance": Provenance.USER_STATED.value}],
-            )
-            self.repo.save_goal(goal)
-            self.repo.set_job_status(job_id, JobStatus.RESEARCHING.value, current_goal_id=goal.id)
-            self.repo.append_event(self._ev(job_id, revision, "REASON", "DEFINED", refs=[goal.id]))
+            if existing_goal:
+                goal = existing_goal
+                goal.statement = goal_text  # effective goal includes clarifications
+                self.repo.save_goal(goal)
+            else:
+                goal = Goal(
+                    id=new_id("goal"), job_id=job_id, statement=goal_text,
+                    purpose=None, original_user_text=job.original_request, revision=revision,
+                    constraints=[{"text": job.original_request, "provenance": Provenance.USER_STATED.value}],
+                )
+                self.repo.save_goal(goal)
+                self.repo.set_job_status(job_id, JobStatus.RESEARCHING.value, current_goal_id=goal.id)
+                self.repo.append_event(self._ev(job_id, revision, "REASON", "DEFINED", refs=[goal.id]))
+
+            # --- Ambiguity gate (03 §5): decisive ambiguity -> NEEDS_INPUT ---
+            # only when the goal has NOT been clarified yet
+            clarified = bool(existing_goal and any(
+                isinstance(c, dict) and c.get("text") != job.original_request
+                for c in existing_goal.constraints
+            ))
+            if not clarified:
+                try:
+                    amb = await self.llm.check_ambiguity(goal_text)
+                    if amb.is_decisively_ambiguous and amb.question:
+                        goal.open_questions = [amb.question]
+                        self.repo.save_goal(goal)
+                        self.repo.set_job_status(job_id, JobStatus.NEEDS_INPUT.value, active_run_id=None)
+                        self.repo.append_event(self._ev(
+                            job_id, revision, "ASK_USER", "NEEDS_INPUT",
+                            usage={"question": amb.question, "rationale": amb.rationale},
+                        ))
+                        return  # wait for user clarification; do not fabricate
+                except Exception as e:  # noqa: BLE001
+                    self.repo.append_event(self._ev(
+                        job_id, revision, "REASON", "AMBIGUITY_CHECK_ERROR", error=repr(e),
+                    ))
 
             # --- Derive ---
             guard.check()

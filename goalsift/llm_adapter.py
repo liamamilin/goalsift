@@ -59,6 +59,13 @@ class ChallengeReport(BaseModel):
     revised: bool = False
 
 
+class AmbiguityCheck(BaseModel):
+    """Whether a goal has a decisive ambiguity that would change the solution space."""
+    is_decisively_ambiguous: bool
+    question: str = ""
+    rationale: str = ""
+
+
 class ProposalDraft(BaseModel):
     title: str
     summary: str
@@ -126,6 +133,18 @@ class LLMAdapter:
             ),
             output_type=ChallengeReport,
         )
+        self._ambiguity_agent = Agent(
+            _model(),
+            system_prompt=(
+                "You judge whether a user goal has a DECISIVE ambiguity — one where "
+                "different reasonable interpretations lead to genuinely different solution "
+                "spaces (e.g. 'a good product' with no product type/purpose/user). "
+                "Only flag TRUE decisive ambiguity, not mere missing nice-to-have details. "
+                "If ambiguous, write one focused clarifying question. If the goal is "
+                "specific enough to research, do not flag it."
+            ),
+            output_type=AmbiguityCheck,
+        )
 
     async def derive_conditions(self, goal_text: str) -> list[ConditionSpec]:
         r = await self._cond_agent.run(f"Goal: {goal_text}")
@@ -176,4 +195,9 @@ class LLMAdapter:
             + "\n\nChallenge this model. Return findings with a per-condition recommendation."
         )
         r = await self._challenge_agent.run(prompt)
+        return r.output
+
+    async def check_ambiguity(self, goal_text: str) -> "AmbiguityCheck":
+        """03 §5: detect decisive ambiguity that changes the solution space."""
+        r = await self._ambiguity_agent.run(f"User goal: {goal_text}")
         return r.output

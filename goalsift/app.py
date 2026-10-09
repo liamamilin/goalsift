@@ -126,19 +126,25 @@ class InputCmd(BaseModel):
 
 @app.post("/api/jobs/{job_id}/input")
 async def input_cmd(job_id: str, body: InputCmd):
-    """Refine: COMPLETED -> new revision with an added constraint (04 §3.1).
-    Preserves prior revision; invalidates its dependent objects (05 §12)."""
+    """Handle user input: Refine (COMPLETED -> new revision) or answer (NEEDS_INPUT -> resume).
+    04 §3.1, 05 §12."""
     job = repo.get_job(job_id)
     if not job:
         raise HTTPException(404, "job not found")
-    if job.status != JobStatus.COMPLETED:
-        raise HTTPException(409, "only COMPLETED jobs can be refined")
     if not body.constraint.strip():
-        raise HTTPException(400, "empty constraint")
-    ok = await controller.refine(job_id, body.constraint)
-    if not ok:
-        raise HTTPException(409, "refine could not start new revision")
-    return {"id": job_id, "status": "RESEARCHING", "revision": repo.get_job(job_id).current_revision}
+        raise HTTPException(400, "empty input")
+    if job.status == JobStatus.COMPLETED:
+        ok = await controller.refine(job_id, body.constraint)
+        if not ok:
+            raise HTTPException(409, "refine could not start new revision")
+        return {"id": job_id, "status": "RESEARCHING",
+                "revision": repo.get_job(job_id).current_revision}
+    if job.status == JobStatus.NEEDS_INPUT:
+        ok = await controller.answer_input(job_id, body.constraint)
+        if not ok:
+            raise HTTPException(409, "could not resume from NEEDS_INPUT")
+        return {"id": job_id, "status": "RESEARCHING"}
+    raise HTTPException(409, f"cannot accept input in {job.status.value} state")
 
 
 @app.get("/api/jobs/{job_id}/results")
