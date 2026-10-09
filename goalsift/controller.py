@@ -117,6 +117,8 @@ class Controller:
         return True
 
     async def _run(self, job_id: str, run_id: str, revision: int) -> None:
+        from .budget import BudgetExhausted, BudgetGuard
+        guard = BudgetGuard()
         try:
             job = self.repo.get_job(job_id)
             assert job is not None
@@ -133,6 +135,7 @@ class Controller:
             self.repo.append_event(self._ev(job_id, revision, "REASON", "DEFINED", refs=[goal.id]))
 
             # --- Derive ---
+            guard.check()
             specs = await self.llm.derive_conditions(goal_text)
             conditions: list[Condition] = []
             for sp in specs:
@@ -215,6 +218,7 @@ class Controller:
             # --- Discover ---
             if self._stopped(job_id):
                 return
+            guard.check(tool_call=True)
             results, meta = await self.search.search(goal_text, num=4)
             fetched_urls: set[str] = set()
             resources: list[Resource] = []
@@ -281,6 +285,7 @@ class Controller:
                 top = results[0]
                 fetched_urls.add(top.url)
                 try:
+                    guard.check(tool_call=True)
                     sr_deep, read_meta = await self.search.read_source(top.url)
                     ev_deep = Evidence(
                         id=new_id("ev"), job_id=job_id,
@@ -315,6 +320,7 @@ class Controller:
             # --- Match ---
             if self._stopped(job_id):
                 return
+            guard.check(tool_call=True)
             res_dicts = [{"name": r.name, "url": r.canonical_source,
                           "license": r.license_claim or "UNKNOWN",
                           "text": r.description} for r in resources]
@@ -383,6 +389,7 @@ class Controller:
             # --- Propose ---
             if self._stopped(job_id):
                 return
+            guard.check(tool_call=True)
             draft = await self.llm.draft_proposal(
                 goal_text,
                 [{"name": r.name, "url": r.canonical_source,
@@ -429,8 +436,16 @@ class Controller:
             # --- Finish ---
             self.repo.set_job_status(job_id, JobStatus.COMPLETED.value, active_run_id=None)
             self.repo.append_event(self._ev(job_id, revision, "FINISH", "COMPLETED",
-                                            refs=[proposal.id]))
+                                            refs=[proposal.id], usage=guard.usage.snapshot()))
 
+        except BudgetExhausted as e:
+            # 04 §7: budget exhausted -> PARTIAL, save committed work
+            self.repo.set_job_status(job_id, JobStatus.PARTIAL.value, active_run_id=None,
+                                     checkpoint_ref=str(e))
+            self.repo.append_event(self._ev(
+                job_id, revision, "FINISH", "PARTIAL",
+                error=str(e), usage=guard.usage.snapshot(),
+            ))
         except Exception as e:  # noqa: BLE001
             self.repo.set_job_status(job_id, JobStatus.FAILED.value, active_run_id=None)
             self.repo.append_event(self._ev(

@@ -184,3 +184,35 @@ async def events(job_id: str, last: int = 0):
 @app.get("/api/health")
 def health():
     return {"ok": True}
+
+
+@app.get("/api/settings")
+def settings():
+    """Config status for the Settings page. Never returns secret values —
+    only whether each provider key is configured, plus budget caps."""
+    import os as _os
+    from .security import redact_secrets
+    llm_key = bool(_os.environ.get("DEEPSEEK_API_KEY") or _os.environ.get("GOALSIFT_LLM_API_KEY"))
+    search_key = bool(_os.environ.get("EXA_API_KEY") or _os.environ.get("GOALSIFT_SEARCH_API_KEY"))
+    return {
+        "llm": {
+            "configured": llm_key,
+            "provider": _os.environ.get("GOALSIFT_LLM_PROVIDER", "deepseek"),
+            "model": _os.environ.get("GOALSIFT_LLM_MODEL", "deepseek-chat"),
+            "key_preview": "***" if llm_key else "(unset)",  # never the real value
+        },
+        "search": {
+            "configured": search_key,
+            "provider": _os.environ.get("GOALSIFT_SEARCH_PROVIDER", "exa"),
+            "key_preview": "***" if search_key else "(unset)",
+        },
+        "budget": {
+            "max_actions": int(_os.environ.get("GOALSIFT_MAX_ACTIONS") or 30),
+            "max_tool_calls": int(_os.environ.get("GOALSIFT_MAX_TOOL_CALLS") or 20),
+            "max_runtime_seconds": int(_os.environ.get("GOALSIFT_MAX_RUNTIME_SECONDS") or 300),
+            "budget_usd": (_os.environ.get("GOALSIFT_BUDGET_USD")
+                           or "unknown (no spend cap)"),
+        },
+        "binding": "127.0.0.1 (loopback only)",
+        "note": "Keys are never exposed to the browser or logs.",
+    }

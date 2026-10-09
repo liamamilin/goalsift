@@ -109,6 +109,25 @@ export function exportUrl(id: string, fmt: "markdown" | "json"): string {
   return `${API}/api/jobs/${id}/export?fmt=${fmt}`;
 }
 
+export interface Settings {
+  llm: { configured: boolean; provider: string; model: string; key_preview: string };
+  search: { configured: boolean; provider: string; key_preview: string };
+  budget: {
+    max_actions: number;
+    max_tool_calls: number;
+    max_runtime_seconds: number;
+    budget_usd: string;
+  };
+  binding: string;
+  note: string;
+}
+
+export async function getSettings(): Promise<Settings> {
+  const r = await fetch(`${API}/api/settings`);
+  if (!r.ok) throw new Error(`settings failed: ${r.status}`);
+  return r.json();
+}
+
 export interface EventItem {
   event_id?: string;
   event_type: string;
