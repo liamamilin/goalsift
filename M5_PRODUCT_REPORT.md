@@ -1,3 +1,17 @@
+# 2026-10-10 当前复验 — M5 产品体验、安全与预算复验
+
+**当前 Gate：PASS**。本节与 [FINAL_ACCEPTANCE_REPORT.md](FINAL_ACCEPTANCE_REPORT.md) 为本轮证据；下方旧报告保留为历史，历史数字/推测不能代替当前复验。
+
+- 实际行为与复用：沿用用户前端设计、Radix/Tailwind/Driver.js。补齐 HTTP 错误、实时事件与刷新、历史只读、真实下载、条件依据、费用/预留、密钥掩码；修复窄屏撑宽、引导残留与 hash 刷新。
+- 变更与证据：frontend/src/、goalsift/app.py、budget.py、security.py、search_adapter.py；README/Makefile/备份脚本。
+- 执行/观察：make check：88 tests、oxlint、TypeScript 和 Vite build PASS；浏览器桌面/390px 实查，匹配两个 viewport 340/340，页面 390/390；密钥只显示 ***。备份 integrity_check/已提交行数 PASS。
+- Mock/Live：本轮三例 DeepSeek/Exa 及一次性基线为真实收费调用；自动负向和恢复测试只替换付费提供商，不计作 Live。
+- 恢复点：修改前归档与 `2be917c`；最终 `phase-a-v0.2.1`。测试在临时数据根，无目标项目执行。
+- 限制与下一步：本节 Gate PASS；预算耗尽、SSRF/注入、无证据与错误路径由隔离测试覆盖，不冒称全部为付费 Live。临时窄屏已复原。
+
+- 凭据遗留：原 HEAD 安全测试含两个真实 key 字面量，本轮当前文件已替换为合成值并扫描通过；旧历史/0600 本机归档仍需按敏感材料处理，建议更换提供商凭据。
+
+<!-- historical-report -->
 # M5 Report — Product Experience, Cost & Security
 
 **Milestone**: M5 — 产品体验、成本与安全  

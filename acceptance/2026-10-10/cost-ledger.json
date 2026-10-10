@@ -1,0 +1,66 @@
+{
+  "approved_limit_usd": 1,
+  "known_conservative_usage_usd": 0.3249574,
+  "unreconciled_reservations_usd": 0.0738,
+  "session_conservative_total_usd": 0.3987574,
+  "basis": "DeepSeek peak token rates, Exa response costDollars, plus full bounds for missing receipts. Not a provider invoice. No cache discounts counted. Historical revision costs are included.",
+  "records": [
+    {
+      "artifact": "web-r1.json",
+      "known_usd": 0.0227996,
+      "unreconciled_reservation_usd": 0.021
+    },
+    {
+      "artifact": "web-r2.json",
+      "known_usd": 0.0764804,
+      "unreconciled_reservation_usd": 0.0
+    },
+    {
+      "artifact": "web-r3.json",
+      "known_usd": 0.0500969,
+      "unreconciled_reservation_usd": 0.0
+    },
+    {
+      "artifact": "game-r1.json",
+      "known_usd": 0.0893978,
+      "unreconciled_reservation_usd": 0.021
+    },
+    {
+      "artifact": "vague-r1.json",
+      "known_usd": 0.0753194,
+      "unreconciled_reservation_usd": 0.0
+    },
+    {
+      "artifact": "web-baseline.json",
+      "known_usd": 0.003976499999999999,
+      "unreconciled_reservation_usd": 0
+    },
+    {
+      "artifact": "game-baseline.json",
+      "known_usd": 0.0029745,
+      "unreconciled_reservation_usd": 0
+    },
+    {
+      "artifact": "vague-baseline.json",
+      "known_usd": 0.0024126,
+      "unreconciled_reservation_usd": 0
+    },
+    {
+      "artifact": "vague-initial-baseline.json",
+      "known_usd": 0.0014996999999999999,
+      "unreconciled_reservation_usd": 0
+    },
+    {
+      "artifact": "initial ambiguity probe (cancel-events.json)",
+      "known_usd": 0,
+      "unreconciled_reservation_usd": 0.021,
+      "note": "Usage receipt lost before ContextVar fix; count full 50000-input/5000-output preflight bound."
+    },
+    {
+      "artifact": "web-baseline-probe.json",
+      "known_usd": 0,
+      "unreconciled_reservation_usd": 0.0108,
+      "note": "Unscored preliminary call; count full 20000-input/4000-output preflight bound."
+    }
+  ]
+}

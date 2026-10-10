@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import ipaddress
+import os
 import re
 import socket
 from urllib.parse import urlparse
@@ -33,6 +34,9 @@ def redact_secrets(text: str) -> str:
     if not text:
         return text
     out = text
+    for key in ('GOALSIFT_LLM_API_KEY', 'DEEPSEEK_API_KEY', 'GOALSIFT_SEARCH_API_KEY', 'EXA_API_KEY'):
+        secret = os.environ.get(key, '')
+        if len(secret) >= 8: out = out.replace(secret, _REDACTED)
     for pat in _SECRET_PATTERNS:
         out = pat.sub(_REDACTED, out)
     return out

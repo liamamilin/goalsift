@@ -1,0 +1,86 @@
+[
+  {
+    "artifact": "web-r3.json",
+    "revision": 3,
+    "conditions": 8,
+    "resources": 8,
+    "assessments": 64,
+    "statuses": {
+      "UNKNOWN": 26,
+      "PARTIAL": 31,
+      "SUPPORTED": 4,
+      "CONFLICTED": 1,
+      "NOT_SATISFIED": 2
+    },
+    "usage": {
+      "actions": 17,
+      "tool_calls": 2,
+      "cost_usd": 0.0500969,
+      "known_cost_usd": 0.0500969,
+      "reserved_usd": 0.0,
+      "input_tokens": 49155,
+      "output_tokens": 17792,
+      "model_requests": 15,
+      "cost_unknown": false,
+      "elapsed_seconds": 113.53,
+      "stopped_reason": null
+    },
+    "sha256": "066b72817d087ea663c94b418c5534328fabd2b8cc8dda99cef683e98b3b18c5",
+    "verdict": "PASS"
+  },
+  {
+    "artifact": "game-r1.json",
+    "revision": 1,
+    "conditions": 12,
+    "resources": 8,
+    "assessments": 96,
+    "statuses": {
+      "PARTIAL": 41,
+      "NOT_SATISFIED": 29,
+      "UNKNOWN": 23,
+      "SUPPORTED": 3
+    },
+    "usage": {
+      "actions": 29,
+      "tool_calls": 11,
+      "cost_usd": 0.0893978,
+      "known_cost_usd": 0.0893978,
+      "reserved_usd": 0.021,
+      "input_tokens": 64450,
+      "output_tokens": 34219,
+      "model_requests": 17,
+      "cost_unknown": false,
+      "elapsed_seconds": 245.76,
+      "stopped_reason": null
+    },
+    "sha256": "b81b175f78a69878924f1c335f9e6608f58a6511977cfd5ed44f88929faadb8a",
+    "verdict": "PASS"
+  },
+  {
+    "artifact": "vague-r1.json",
+    "revision": 1,
+    "conditions": 12,
+    "resources": 8,
+    "assessments": 96,
+    "statuses": {
+      "UNKNOWN": 46,
+      "PARTIAL": 42,
+      "SUPPORTED": 8
+    },
+    "usage": {
+      "actions": 27,
+      "tool_calls": 11,
+      "cost_usd": 0.0753194,
+      "known_cost_usd": 0.0753194,
+      "reserved_usd": 0.0,
+      "input_tokens": 55026,
+      "output_tokens": 24843,
+      "model_requests": 16,
+      "cost_unknown": false,
+      "elapsed_seconds": 190.3,
+      "stopped_reason": null
+    },
+    "sha256": "dcd22d87f91d722fd7238d5dba2fd0a7b370079147eba57d7e4d8b8140c3234d",
+    "verdict": "PASS"
+  }
+]

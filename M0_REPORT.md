@@ -1,3 +1,17 @@
+# 2026-10-10 当前复验 — M0 安全基线
+
+**当前 Gate：PASS**。本节与 [FINAL_ACCEPTANCE_REPORT.md](FINAL_ACCEPTANCE_REPORT.md) 为本轮证据；下方旧报告保留为历史，历史数字/推测不能代替当前复验。
+
+- 实际行为与复用：保存原 HEAD、未提交前端和源文件/diff 归档，测试数据库与收费研究全部隔离；原 .env 和 .goalsift_data 未改写。复用既有 Git/pytest/路径守卫。
+- 变更与证据：tests/conftest.py、tests/test_isolation.py 与 tests/test_runtime_integration.py；恢复归档见最终报告 §1。
+- 执行/观察：初始 .venv/bin/python -m pytest：61 passed；最终隔离回归 88 passed。
+- Mock/Live：本轮三例 DeepSeek/Exa 及一次性基线为真实收费调用；自动负向和恢复测试只替换付费提供商，不计作 Live。
+- 恢复点：修改前归档与 `2be917c`；最终 `phase-a-v0.2.1`。测试在临时数据根，无目标项目执行。
+- 限制与下一步：本节 Gate PASS；后续沿现有架构完成 SDK 与真实来源复验。
+
+- 凭据遗留：原 HEAD 安全测试含两个真实 key 字面量，本轮当前文件已替换为合成值并扫描通过；旧历史/0600 本机归档仍需按敏感材料处理，建议更换提供商凭据。
+
+<!-- historical-report -->
 # M0 Report — Requirements Review & Safe Baseline
 
 **Milestone**: M0 — 需求审查与安全基线  

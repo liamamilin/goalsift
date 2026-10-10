@@ -63,16 +63,18 @@ def test_external_content_wrapped_as_data():
 
 
 def test_redact_deepseek_key():
-    leaked = "using key REDACTED_TEST_CREDENTIAL for deepseek"
+    synthetic = "sk-0123456789abcdef0123456789abcdef"
+    leaked = f"using key {synthetic} for deepseek"
     redacted = security.redact_secrets(leaked)
-    assert "7dd23e5ddfba413c88473358da288ec8" not in redacted
+    assert synthetic not in redacted
     assert "[REDACTED]" in redacted
 
 
 def test_redact_uuid_key():
-    leaked = "exa key REDACTED_TEST_CREDENTIAL"
+    synthetic = "00000000-0000-4000-8000-000000000000"
+    leaked = f"exa key {synthetic}"
     redacted = security.redact_secrets(leaked)
-    assert "REDACTED_TEST_CREDENTIAL" not in redacted
+    assert synthetic not in redacted
 
 
 def test_redact_bearer_token():

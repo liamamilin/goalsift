@@ -1,0 +1,13 @@
+{
+  "health": {
+    "ok": true,
+    "version": "0.2.1"
+  },
+  "states": {
+    "job_8fef9fa3b4604b9f": "COMPLETED",
+    "job_5df31703dcdb4537": "COMPLETED",
+    "job_8a48c356fcd049ab": "COMPLETED",
+    "job_3ca5f904442a4f47": "CANCELLED"
+  },
+  "ui_status": 200
+}

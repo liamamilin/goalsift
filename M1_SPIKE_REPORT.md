@@ -1,3 +1,15 @@
+# 2026-10-10 当前复验 — M1 当前适配器复验
+
+**当前 Gate：PASS**。本节与 [FINAL_ACCEPTANCE_REPORT.md](FINAL_ACCEPTANCE_REPORT.md) 为本轮证据；下方旧报告保留为历史，历史数字/推测不能代替当前复验。
+
+- 实际行为与复用：沿用 Pydantic AI、DeepSeek、Exa、FastAPI 与 SQLite。结构化响应、真实搜索与读取通过实际三案例复验；收到模型超限错误并记录 FAILED。关闭 SDK 隐式重试并修复回执跨子任务丢失。
+- 变更与证据：goalsift/llm_adapter.py、search_adapter.py、budget.py；108 项完整 requirements.lock。
+- 执行/观察：干净 venv 安装 108 个固定版本并通过兼容检查；source quote 原文/ID 审计 PASS。新增费用总上界核算 $0.3987574。
+- Mock/Live：本轮三例 DeepSeek/Exa 及一次性基线为真实收费调用；自动负向和恢复测试只替换付费提供商，不计作 Live。
+- 恢复点：修改前归档与 `2be917c`；最终 `phase-a-v0.2.1`。测试在临时数据根，无目标项目执行。
+- 限制与下一步：本节 Gate PASS；旧 Spike 中各项调用未全部重跑，旧文字仅作历史记录，不能算新增 Live 证据。
+
+<!-- historical-report -->
 # M1 Spike Report — Technology Selection & Verification
 
 **Milestone**: M1 — 技术 Spike 与选择  

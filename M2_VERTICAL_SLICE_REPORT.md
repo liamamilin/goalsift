@@ -1,3 +1,15 @@
+# 2026-10-10 当前复验 — M2 真实纵向链路复验
+
+**当前 Gate：PASS**。本节与 [FINAL_ACCEPTANCE_REPORT.md](FINAL_ACCEPTANCE_REPORT.md) 为本轮证据；下方旧报告保留为历史，历史数字/推测不能代替当前复验。
+
+- 实际行为与复用：浏览器实际创建/自动启动、模型解析、Exa 来源、匹配、方案和下载相连。最初公共来源被 VPN Fake-IP 误拒绝，诚实保存无方案；修复后获得真实来源方案。
+- 变更与证据：goalsift/app.py、controller.py、exporter.py；frontend/src/api.ts、Home.tsx、Workspace.tsx。
+- 执行/观察：web-r2/r3 实际完成；当前及历史 JSON 和当前 Markdown 由浏览器 downloadMedia 下载；独立 JSON 比对 PASS。
+- Mock/Live：本轮三例 DeepSeek/Exa 及一次性基线为真实收费调用；自动负向和恢复测试只替换付费提供商，不计作 Live。
+- 恢复点：修改前归档与 `2be917c`；最终 `phase-a-v0.2.1`。测试在临时数据根，无目标项目执行。
+- 限制与下一步：本节 Gate PASS；输出是待人审阅路径，视觉/接口兼容性尚未做目标环境测试。
+
+<!-- historical-report -->
 # M2 Report — Minimal Real Vertical Slice
 
 **Milestone**: M2 — 最小真实纵向链路  

@@ -1,85 +1,59 @@
-"""Exporter — Markdown + JSON from the current valid revision (05 §13).
-
-Both views derive from the same validated data; the LLM may polish wording in
-the report but never introduces new uninvestigated resource facts.
-"""
-
+"""Reports and JSON derive from exactly the same current or historical snapshot."""
 from __future__ import annotations
-
-import json
 from datetime import datetime, timezone
-
+import json
 from .repository import Repository
+from .security import redact_secrets
 
+def to_json(repo: Repository, job_id: str, *, view: dict | None = None) -> dict:
+    result = dict(view if view is not None else repo.current_view(job_id))
+    result['exported_at'] = datetime.now(timezone.utc).isoformat()
+    return json.loads(redact_secrets(json.dumps(result, ensure_ascii=False)))
 
-def to_json(repo: Repository, job_id: str) -> dict:
-    job = repo.get_job(job_id)
-    goal = repo.get_goal(job_id)
-    conditions = repo.list_conditions(job_id)
-    resources = repo.list_resources(job_id)
-    capabilities = repo.list_capabilities(job_id)
-    evidence = repo.list_evidence(job_id)
-    assessments = repo.list_assessments(job_id)
-    proposal = repo.get_proposal(job_id)
-    return {
-        "exported_at": datetime.now(timezone.utc).isoformat(),
-        "job": job.model_dump() if job else None,
-        "goal": goal.model_dump() if goal else None,
-        "conditions": [c.model_dump() for c in conditions],
-        "resources": [r.model_dump() for r in resources],
-        "capabilities": [c.model_dump() for c in capabilities],
-        "evidence": [e.model_dump() for e in evidence],
-        "assessments": [a.model_dump() for a in assessments],
-        "proposal": proposal.model_dump() if proposal else None,
-    }
-
-
-def to_markdown(repo: Repository, job_id: str) -> str:
-    job = repo.get_job(job_id)
-    goal = repo.get_goal(job_id)
-    conditions = repo.list_conditions(job_id)
-    resources = repo.list_resources(job_id)
-    evidence = repo.list_evidence(job_id)
-    assessments = repo.list_assessments(job_id)
-    proposal = repo.get_proposal(job_id)
-    L: list[str] = []
-    L.append(f"# GoalSift Research Report\n")
-    L.append(f"- Job: `{job_id}`  \n- Status: {job.status.value if job else '?'}  \n- Exported: {datetime.now(timezone.utc).isoformat()}\n")
-    L.append("\n## 1. Goal Brief\n")
+def to_markdown(repo: Repository, job_id: str, *, view: dict | None = None) -> str:
+    d = to_json(repo, job_id, view=view)
+    goal, proposal = d['goal'], d['proposal']
+    lines = ['# GoalSift 研究报告', '', f'- 任务：{job_id}', f'- 修订：{d["revision"]}',
+             f'- 状态：{d["status"]}', f'- 导出时间：{d["exported_at"]}',
+             '- 范围：公开来源的方案研究；方案尚未执行，来源支持不等于目标环境验收。', '', '## 目标', '']
     if goal:
-        L.append(f"**Statement**: {goal.statement}\n")
-        L.append(f"**Original user text** (preserved): {goal.original_user_text}\n")
-    else:
-        L.append("_No goal defined._\n")
-    L.append("\n## 2. Condition Model\n")
-    for c in conditions:
-        L.append(f"- [{c.obligation.value}/{c.dimension.value}] {c.statement}")
-    L.append("\n## 3. Resource Catalog\n")
-    for r in resources:
-        L.append(f"- **{r.name}** ({r.kind}) — license: `{r.license_claim or 'UNKNOWN'}`")
-        L.append(f"  - source: {r.canonical_source}")
-        L.append(f"  - {r.description[:160]}")
-    L.append("\n## 4. Satisfaction Analysis\n")
-    for a in assessments:
-        L.append(f"- **{a.status.value}** — {a.explanation}")
-        if a.gaps:
-            L.append(f"  - gaps: {a.gaps}")
-    L.append("\n## 5. Proposal Set\n")
+        lines += [goal['statement'], '', '**用户原话：** ' + goal['original_user_text']]
+        for name, label in [('constraints', '约束'), ('assumptions', '未确认假设'), ('open_questions', '待确认问题')]:
+            if goal.get(name):
+                lines += ['', '**' + label + '**']
+                for item in goal[name]: lines.append('- ' + (item.get('text', str(item)) if isinstance(item, dict) else str(item)))
+    lines += ['', '## 候选路径', '']
     if proposal:
-        L.append(f"### {proposal.title}\n")
-        L.append(f"{proposal.summary}\n")
-        L.append(f"- **Recommendation reason**: {proposal.recommendation_reason}")
-        L.append(f"- **Risks**: {proposal.risks}")
-        L.append(f"- **Costs**: {proposal.costs}")
-        L.append(f"- _READY_FOR_REVIEW — not executed; user decision required._")
-    else:
-        L.append("_No proposal yet._")
-    L.append("\n## 6. Open Questions\n")
-    unknown = [a for a in assessments if a.status.value == "UNKNOWN"]
-    if unknown:
-        for a in unknown:
-            L.append(f"- license/feasibility UNKNOWN: {a.explanation}")
-    else:
-        L.append("_None._")
-    L.append(f"\n---\n_Evidence count: {len(evidence)}.  Export derived from current validated revision only._\n")
-    return "\n".join(L)
+        lines += ['### ' + proposal['title'], '', proposal['summary'], '',
+                  '**建议理由：** ' + proposal['recommendation_reason'], '']
+        for key, label in [('integration_work', '集成工作'), ('new_work', '补充工作'), ('risks', '风险'), ('assumptions', '假设')]:
+            if proposal.get(key): lines += ['**' + label + '**', *['- ' + x for x in proposal[key]], '']
+        lines += ['实施费用：' + json.dumps(proposal['costs'], ensure_ascii=False), '']
+    else: lines += ['当前没有有依据的候选路径。', '']
+    lines += ['## 成立条件', '']
+    conditions = {c['id']: c for c in d['conditions']}
+    resources = {r['id']: r for r in d['resources']}
+    evidence = {e['id']: e for e in d['evidence']}
+    for c in conditions.values():
+        lines += [f'- **[{c["obligation"]} / {c["dimension"]}]** {c["statement"]} (`{c["id"]}`)',
+                  '  - 依据：' + c['origin'], '  - 验收方式：' + (c.get('verification_method') or '未确认')]
+    lines += ['', '## 资源与许可', '']
+    for r in resources.values():
+        lines += [f'- **{r["name"]}** — 许可：{r.get("license_claim") or "UNKNOWN"}',
+                  '  - 来源：' + r['canonical_source'], '  - ' + r['description']]
+    lines += ['', '## 条件匹配与证据', '']
+    for a in d['assessments']:
+        condition = conditions.get(a['condition_id'], {}).get('statement', a['condition_id'])
+        names = '、'.join(resources[r]['name'] for r in a['resource_ids'] if r in resources)
+        lines += [f'### {a["status"]}：{condition}', '', f'资源：{names}', a['explanation']]
+        for gap in a['gaps']: lines.append('- 缺口：' + gap)
+        for eid in a['evidence_ids']:
+            e = evidence.get(eid)
+            if e: lines += [f'- 来源：{e["source_ref"]}（{e["locator"]}；读取于 {e["retrieved_at"]}）',
+                            '  > ' + e['excerpt_or_summary'][:700].replace('\n', '\n  > ')]
+        lines.append('')
+    lines += ['## 研究范围与限制', '']
+    for note in d.get('delivery_notes', []): lines.append('- ' + note)
+    if d.get('stopped_reason'): lines.append('- 中止原因：' + d['stopped_reason'])
+    lines += ['', '研究用量：' + json.dumps(d.get('budget_usage', {}), ensure_ascii=False)]
+    return redact_secrets('\n'.join(lines) + '\n')

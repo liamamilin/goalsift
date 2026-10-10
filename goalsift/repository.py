@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from functools import wraps
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -82,6 +84,14 @@ CREATE TABLE IF NOT EXISTS events (
   action_type TEXT, status TEXT, started_at TEXT, ended_at TEXT,
   related_object_ids TEXT, tool_result_ref TEXT, usage TEXT, error TEXT
 );
+CREATE TABLE IF NOT EXISTS checkpoints (
+  job_id TEXT, revision INTEGER, data TEXT NOT NULL,
+  PRIMARY KEY(job_id, revision)
+);
+CREATE TABLE IF NOT EXISTS revision_snapshots (
+  job_id TEXT, revision INTEGER, data TEXT NOT NULL, created_at TEXT,
+  PRIMARY KEY(job_id, revision)
+);
 """
 
 
@@ -93,33 +103,59 @@ def _j(v: Any) -> str:
     return json.dumps(v, ensure_ascii=False, default=str)
 
 
+def synchronized(method):
+    """Serialize an entire read/write operation on the shared SQLite connection.
+
+    FastAPI sync endpoints run in worker threads while the controller uses the
+    event loop. Locking just writes leaves cursors racing with commits/close.
+    The reentrant lock also makes compound views a consistent read.
+    """
+    @wraps(method)
+    def wrapped(self, *args, **kwargs):
+        with self._lock:
+            return method(self, *args, **kwargs)
+    return wrapped
+
+
 class Repository:
     def __init__(self, db_path: Path | str | None = None) -> None:
         if db_path is None:
             db_path = resolve_under_root("goalsift.sqlite")
-        self.db_path = str(db_path)
+        self.db_path = str(resolve_under_root(db_path))
+        self._lock = threading.RLock()
+        self._tx_depth = 0
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(SCHEMA)
         self._conn.commit()
         # write-ahead for concurrency
         self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA busy_timeout=5000")
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
-        cur = self._conn.cursor()
-        cur.execute("BEGIN")
-        try:
-            yield self._conn
-            cur.execute("COMMIT")
-        except Exception:
-            cur.execute("ROLLBACK")
-            raise
+        with self._lock:
+            depth = self._tx_depth
+            name = f"nested_{depth}"
+            self._conn.execute("BEGIN IMMEDIATE" if not depth else f"SAVEPOINT {name}")
+            self._tx_depth += 1
+            try:
+                yield self._conn
+                self._conn.execute("COMMIT" if not depth else f"RELEASE SAVEPOINT {name}")
+            except BaseException:
+                self._conn.execute("ROLLBACK" if not depth else f"ROLLBACK TO SAVEPOINT {name}")
+                if depth:
+                    self._conn.execute(f"RELEASE SAVEPOINT {name}")
+                raise
+            finally:
+                self._tx_depth -= 1
 
+    @synchronized
     def close(self) -> None:
         self._conn.close()
 
     # --- Job -------------------------------------------------------------
+    @synchronized
     def create_job(self, original_request: str) -> ResearchJob:
         jid = new_id("job")
         job = ResearchJob(
@@ -141,17 +177,19 @@ class Repository:
         ))
         return job
 
+    @synchronized
     def set_job_status(self, job_id: str, status: str, **extra: Any) -> None:
         cols = ["status=?", "updated_at=?"]
         vals: list[Any] = [status, _now()]
         for k, v in extra.items():
-            if k in ("current_goal_id", "current_revision", "active_run_id", "checkpoint_ref"):
+            if k in ("current_goal_id", "current_revision", "active_run_id", "checkpoint_ref", "budget_config", "budget_usage"):
                 cols.append(f"{k}=?")
-                vals.append(v)
+                vals.append(_j(v) if k in ("budget_config", "budget_usage") else v)
         vals.append(job_id)
         with self.transaction() as c:
             c.execute(f"UPDATE jobs SET {', '.join(cols)} WHERE id=?", vals)
 
+    @synchronized
     def get_job(self, job_id: str) -> ResearchJob | None:
         r = self._conn.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
         if not r:
@@ -164,8 +202,10 @@ class Repository:
             budget_usage=json.loads(r["budget_usage"] or "{}"),
             active_run_id=r["active_run_id"], checkpoint_ref=r["checkpoint_ref"],
             open_questions=json.loads(r["open_questions"] or "[]"),
+            created_at=r["created_at"], updated_at=r["updated_at"],
         )
 
+    @synchronized
     def list_jobs(self) -> list[ResearchJob]:
         rows = self._conn.execute("SELECT * FROM jobs ORDER BY created_at DESC").fetchall()
         return [self._row_to_job(r) for r in rows]
@@ -179,9 +219,11 @@ class Repository:
             budget_usage=json.loads(r["budget_usage"] or "{}"),
             active_run_id=r["active_run_id"], checkpoint_ref=r["checkpoint_ref"],
             open_questions=json.loads(r["open_questions"] or "[]"),
+            created_at=r["created_at"], updated_at=r["updated_at"],
         )
 
     # --- Goal ------------------------------------------------------------
+    @synchronized
     def save_goal(self, g: Goal) -> None:
         with self.transaction() as c:
             c.execute(
@@ -192,6 +234,7 @@ class Repository:
                  g.created_at.isoformat(), g.updated_at.isoformat()),
             )
 
+    @synchronized
     def get_goal(self, job_id: str) -> Goal | None:
         r = self._conn.execute("SELECT * FROM goals WHERE job_id=? ORDER BY revision DESC LIMIT 1", (job_id,)).fetchone()
         if not r:
@@ -203,9 +246,11 @@ class Repository:
             constraints=json.loads(r["constraints"] or "[]"),
             assumptions=json.loads(r["assumptions"] or "[]"),
             open_questions=json.loads(r["open_questions"] or "[]"),
+            created_at=r["created_at"], updated_at=r["updated_at"],
         )
 
     # --- Condition -------------------------------------------------------
+    @synchronized
     def save_condition(self, c_obj: Condition) -> None:
         with self.transaction() as c:
             c.execute(
@@ -217,6 +262,7 @@ class Repository:
                  c_obj.created_at.isoformat(), c_obj.updated_at.isoformat()),
             )
 
+    @synchronized
     def list_conditions(self, job_id: str) -> list[Condition]:
         rows = self._conn.execute("SELECT * FROM conditions WHERE job_id=? ORDER BY created_at", (job_id,)).fetchall()
         from .models import Dimension, Obligation, ValidityStatus
@@ -228,9 +274,11 @@ class Repository:
             relations=json.loads(r["relations"] or "[]"),
             validity_status=ValidityStatus(r["validity_status"]),
             revision_created=r["revision_created"],
+            created_at=r["created_at"], updated_at=r["updated_at"],
         ) for r in rows]
 
     # --- Resource --------------------------------------------------------
+    @synchronized
     def save_resource(self, r_obj: Resource) -> None:
         with self.transaction() as c:
             c.execute(
@@ -242,6 +290,7 @@ class Repository:
                  r_obj.discovered_at.isoformat(), r_obj.created_at.isoformat(), r_obj.updated_at.isoformat()),
             )
 
+    @synchronized
     def list_resources(self, job_id: str) -> list[Resource]:
         from .models import DiscoveryStatus
         rows = self._conn.execute("SELECT * FROM resources WHERE job_id=? ORDER BY created_at", (job_id,)).fetchall()
@@ -252,9 +301,11 @@ class Repository:
             version_or_revision=r["version_or_revision"], availability=r["availability"],
             license_claim=r["license_claim"], environment=r["environment"],
             discovery_status=DiscoveryStatus(r["discovery_status"]),
+            discovered_at=r["discovered_at"], created_at=r["created_at"], updated_at=r["updated_at"],
         ) for r in rows]
 
     # --- Capability ------------------------------------------------------
+    @synchronized
     def save_capability(self, cap: Capability) -> None:
         with self.transaction() as c:
             c.execute(
@@ -268,6 +319,7 @@ class Repository:
                  cap.created_at.isoformat(), cap.updated_at.isoformat()),
             )
 
+    @synchronized
     def list_capabilities(self, job_id: str) -> list[Capability]:
         rows = self._conn.execute("SELECT * FROM capabilities WHERE job_id=?", (job_id,)).fetchall()
         return [Capability(
@@ -278,9 +330,11 @@ class Repository:
             effects=json.loads(r["effects"] or "[]"),
             limitations=json.loads(r["limitations"] or "[]"),
             evidence_ids=json.loads(r["evidence_ids"] or "[]"),
+            created_at=r["created_at"], updated_at=r["updated_at"],
         ) for r in rows]
 
     # --- Evidence --------------------------------------------------------
+    @synchronized
     def save_evidence(self, e: Evidence) -> None:
         with self.transaction() as c:
             c.execute(
@@ -297,6 +351,7 @@ class Repository:
                  e.created_at.isoformat(), e.updated_at.isoformat()),
             )
 
+    @synchronized
     def list_evidence(self, job_id: str) -> list[Evidence]:
         from .models import EvidenceStance, SourceType
         rows = self._conn.execute("SELECT * FROM evidence WHERE job_id=? ORDER BY retrieved_at", (job_id,)).fetchall()
@@ -307,9 +362,11 @@ class Repository:
             source_version=r["source_version"], collection_method=r["collection_method"],
             stance=EvidenceStance(r["stance"]), verification_method=r["verification_method"],
             test_context=r["test_context"], observed_result=r["observed_result"],
+            retrieved_at=r["retrieved_at"], created_at=r["created_at"], updated_at=r["updated_at"],
         ) for r in rows]
 
     # --- Assessment ------------------------------------------------------
+    @synchronized
     def save_assessment(self, a: Assessment) -> None:
         with self.transaction() as c:
             c.execute(
@@ -320,6 +377,7 @@ class Repository:
                  a.created_at.isoformat(), a.updated_at.isoformat()),
             )
 
+    @synchronized
     def list_assessments(self, job_id: str) -> list[Assessment]:
         from .models import AssessmentStatus, ReviewStatus
         rows = self._conn.execute("SELECT * FROM assessments WHERE job_id=?", (job_id,)).fetchall()
@@ -333,9 +391,11 @@ class Repository:
             assumptions=json.loads(r["assumptions"] or "[]"),
             review_status=ReviewStatus(r["review_status"]),
             revision_evaluated=r["revision_evaluated"],
+            created_at=r["created_at"], updated_at=r["updated_at"],
         ) for r in rows]
 
     # --- Proposal --------------------------------------------------------
+    @synchronized
     def save_proposal(self, p: Proposal) -> None:
         with self.transaction() as c:
             c.execute(
@@ -348,6 +408,7 @@ class Repository:
                  p.created_at.isoformat(), p.updated_at.isoformat()),
             )
 
+    @synchronized
     def get_proposal(self, job_id: str) -> Proposal | None:
         from .models import ProposalValidity
         r = self._conn.execute("SELECT * FROM proposals WHERE job_id=? ORDER BY revision_created DESC LIMIT 1", (job_id,)).fetchone()
@@ -367,9 +428,11 @@ class Repository:
             recommendation_reason=r["recommendation_reason"],
             validity_status=ProposalValidity(r["validity_status"]),
             revision_created=r["revision_created"],
+            created_at=r["created_at"], updated_at=r["updated_at"],
         )
 
     # --- Events ----------------------------------------------------------
+    @synchronized
     def append_event(self, ev: ResearchEvent) -> None:
         with self.transaction() as c:
             c.execute(
@@ -380,6 +443,7 @@ class Repository:
                  _j(ev.related_object_ids), ev.tool_result_ref, _j(ev.usage), ev.error),
             )
 
+    @synchronized
     def list_events(self, job_id: str, after: int = 0) -> list[ResearchEvent]:
         from .models import ActionType
         rows = self._conn.execute(
@@ -396,12 +460,14 @@ class Repository:
             usage=json.loads(r["usage"] or "{}"), error=r["error"],
         ) for r in rows]
 
+    @synchronized
     def max_event_rowid(self, job_id: str) -> int:
         r = self._conn.execute("SELECT MAX(rowid) FROM events WHERE job_id=?", (job_id,)).fetchone()
         return r[0] or 0
 
     # --- M4: crash recovery, revisions, invalidation propagation --------
 
+    @synchronized
     def recover_orphans(self) -> list[str]:
         """On startup: any job in RESEARCHING has no live runner (the process
         restarted), whether or not active_run_id is set. Per 04 §9, recover to
@@ -425,6 +491,7 @@ class Repository:
             recovered.append(jid)
         return recovered
 
+    @synchronized
     def mark_revision_needs_review(self, job_id: str, revision: int) -> int:
         """05 §12 invalidation propagation: when a goal/constraint changes,
         mark dependent Conditions/Assessments/Proposals of `revision` as
@@ -451,30 +518,37 @@ class Repository:
             n += c.total_changes
         return n
 
+    @synchronized
     def new_revision(self, job_id: str) -> int:
-        """Start a new research revision (Refine). Preserves all prior data;
-        only bumps current_revision and status. Caller propagates invalidation
-        on the OLD revision before running the new one."""
-        job = self.get_job(job_id)
-        if not job:
-            raise ValueError("job not found")
-        old_rev = job.current_revision
-        # invalidate old revision's dependent objects
-        self.mark_revision_needs_review(job_id, old_rev)
-        new_rev = old_rev + 1
-        with self.transaction() as c:
-            c.execute(
-                "UPDATE jobs SET current_revision=?, status='RESEARCHING', "
-                "active_run_id=NULL, updated_at=? WHERE id=?",
-                (new_rev, _now(), job_id),
-            )
-        self.append_event(ResearchEvent(
-            id=new_id("ev"), event_id=new_id("ev"), job_id=job_id,
-            revision=new_rev, action_type="REASON", status="REFINED",
-            related_object_ids=[str(old_rev)],
-        ))
-        return new_rev
+        """Atomically preserve the completed revision and create its successor."""
+        from .models import JobStatus
+        with self.transaction():
+            job = self.get_job(job_id)
+            if not job or job.status != JobStatus.COMPLETED or job.active_run_id:
+                raise ValueError("only a completed, idle job can be refined")
+            old_rev = job.current_revision
+            self.snapshot_revision(job_id)
+            self.mark_revision_needs_review(job_id, old_rev)
+            new_rev = old_rev + 1
+            goal = self.get_goal(job_id)
+            if goal:
+                goal = goal.model_copy(deep=True)
+                goal.id = new_id("goal")
+                goal.revision = new_rev
+                goal.open_questions = []
+                self.save_goal(goal)
+            self.set_job_status(job_id, JobStatus.RESEARCHING.value,
+                                current_revision=new_rev, active_run_id=None,
+                                current_goal_id=goal.id if goal else None,
+                                budget_usage={}, checkpoint_ref=None)
+            self.append_event(ResearchEvent(
+                id=new_id("ev"), event_id=new_id("ev"), job_id=job_id,
+                revision=new_rev, action_type="REVISE", status="REFINED",
+                related_object_ids=[str(old_rev)],
+            ))
+            return new_rev
 
+    @synchronized
     def add_constraint(self, job_id: str, text: str) -> None:
         """Append a user constraint to the current goal revision (used by Refine
         and NEEDS_INPUT answers). Updates the existing goal in place so
@@ -496,3 +570,147 @@ class Repository:
                 constraints=[{"text": text, "provenance": "USER_STATED"}],
             )
             self.save_goal(g)
+
+    # Controller ownership is a database compare-and-set, not a UI lock.
+    @synchronized
+    def claim_run(self, job_id: str, run_id: str, *, refine: bool = False) -> bool:
+        from .models import JobStatus
+        from .validators import validate_transition, ValidationError
+        with self.transaction() as conn:
+            job = self.get_job(job_id)
+            if not job or job.active_run_id:
+                return False
+            if job.status == JobStatus.COMPLETED or job.status == JobStatus.CANCELLED:
+                return False
+            if not (refine and job.status == JobStatus.RESEARCHING):
+                try:
+                    validate_transition(job.status, JobStatus.RESEARCHING)
+                except ValidationError:
+                    return False
+            changed = conn.execute(
+                "UPDATE jobs SET status='RESEARCHING', active_run_id=?, updated_at=?, checkpoint_ref=NULL "
+                "WHERE id=? AND active_run_id IS NULL AND current_revision=?",
+                (run_id, _now(), job_id, job.current_revision),
+            ).rowcount
+            return changed == 1
+
+    @synchronized
+    def owns_run(self, job_id: str, run_id: str, revision: int) -> bool:
+        job = self.get_job(job_id)
+        return bool(job and job.active_run_id == run_id
+                    and job.current_revision == revision and job.status.value == "RESEARCHING")
+
+    @synchronized
+    def finish_run(self, job_id: str, run_id: str, revision: int, status: str,
+                   usage: dict | None = None, reason: str | None = None) -> bool:
+        from .models import JobStatus
+        from .validators import validate_transition
+        with self.transaction():
+            if not self.owns_run(job_id, run_id, revision):
+                return False
+            validate_transition(JobStatus.RESEARCHING, JobStatus(status))
+            self.set_job_status(job_id, status, active_run_id=None,
+                                budget_usage=usage or {}, checkpoint_ref=reason)
+            return True
+
+    @synchronized
+    def get_checkpoint(self, job_id: str, revision: int) -> dict:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT data FROM checkpoints WHERE job_id=? AND revision=?", (job_id, revision)
+            ).fetchone()
+            return json.loads(row[0]) if row else {}
+
+    @synchronized
+    def save_checkpoint(self, job_id: str, revision: int, data: dict) -> None:
+        with self.transaction() as conn:
+            conn.execute("INSERT OR REPLACE INTO checkpoints VALUES (?,?,?)",
+                         (job_id, revision, _j(data)))
+
+    @synchronized
+    def current_view(self, job_id: str) -> dict:
+        """One consistent revision view shared by the UI, validators and exports."""
+        with self._lock:
+            job = self.get_job(job_id)
+            if not job:
+                raise KeyError(job_id)
+            rev = job.current_revision
+            state = self.get_checkpoint(job_id, rev)
+            conditions = [c for c in self.list_conditions(job_id)
+                          if c.revision_created == rev and c.validity_status.value == "ACTIVE"]
+            cond_ids = {c.id for c in conditions}
+            assessments = [a for a in self.list_assessments(job_id)
+                           if a.revision_evaluated == rev and a.review_status.value == "CURRENT"
+                           and a.condition_id in cond_ids]
+            resource_ids = set(state.get("resource_ids", []))
+            resource_ids.update(rid for a in assessments for rid in a.resource_ids)
+            # Legacy completed runs predate checkpoints; their assessments are authoritative.
+            proposal = self.get_proposal(job_id)
+            if proposal and (proposal.revision_created != rev or
+                             proposal.validity_status.value != "READY_FOR_REVIEW"):
+                proposal = None
+            if proposal:
+                resource_ids.update(proposal.resource_ids)
+            resources = [r for r in self.list_resources(job_id) if r.id in resource_ids]
+            capabilities = [c for c in self.list_capabilities(job_id) if c.resource_id in resource_ids]
+            evidence_ids = set(state.get("evidence_ids", []))
+            evidence_ids.update(eid for c in capabilities for eid in c.evidence_ids)
+            evidence_ids.update(eid for a in assessments for eid in a.evidence_ids)
+            evidence = [e for e in self.list_evidence(job_id) if e.id in evidence_ids]
+            goal = self.get_goal(job_id)
+            return {
+                "id": job.id, "status": job.status.value, "revision": rev,
+                "original_request": job.original_request,
+                "goal": goal.model_dump(mode="json") if goal else None,
+                "conditions": [c.model_dump(mode="json") for c in conditions],
+                "resources": [r.model_dump(mode="json") for r in resources],
+                "capabilities": [c.model_dump(mode="json") for c in capabilities],
+                "evidence": [e.model_dump(mode="json") for e in evidence],
+                "assessments": [a.model_dump(mode="json") for a in assessments],
+                "proposal": proposal.model_dump(mode="json") if proposal else None,
+                "budget_usage": job.budget_usage,
+                "budget_config": job.budget_config,
+                "checkpoint": state.get("stage", "define"),
+                "stopped_reason": job.checkpoint_ref,
+                "delivery_notes": state.get("delivery_notes", []),
+            }
+
+    @synchronized
+    def snapshot_revision(self, job_id: str) -> None:
+        view = self.current_view(job_id)
+        with self.transaction() as conn:
+            conn.execute("INSERT OR IGNORE INTO revision_snapshots VALUES (?,?,?,?)",
+                         (job_id, view["revision"], _j(view), _now()))
+
+    @synchronized
+    def get_revision(self, job_id: str, revision: int) -> dict | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT data FROM revision_snapshots WHERE job_id=? AND revision=?", (job_id, revision)
+            ).fetchone()
+            return json.loads(row[0]) if row else None
+
+    @synchronized
+    def list_revisions(self, job_id: str) -> list[dict]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT revision, created_at FROM revision_snapshots WHERE job_id=? ORDER BY revision DESC",
+                (job_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    @synchronized
+    def events_page(self, job_id: str, after: int = 0) -> list[dict]:
+        from .security import redact_secrets
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT rowid AS cursor, * FROM events WHERE job_id=? AND rowid>? ORDER BY rowid",
+                (job_id, after),
+            ).fetchall()
+            return [{"cursor": r["cursor"], "event_id": r["event_id"],
+                     "revision": r["revision"], "event_type": r["action_type"],
+                     "status": r["status"], "timestamp": r["started_at"],
+                     "related": json.loads(r["related_object_ids"] or "[]"),
+                     "error": redact_secrets(r["error"] or "") or None,
+                     "usage": json.loads(r["usage"] or "{}"), "tool": r["tool_result_ref"]}
+                    for r in rows]

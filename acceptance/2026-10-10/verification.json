@@ -1,0 +1,24 @@
+{
+  "configured_key_exact_match_scan": "PASS",
+  "files_scanned": 101,
+  "current_files_contain_configured_keys": false,
+  "historical_head_test_file_contained_keys": true,
+  "historical_source_archive_mode": "0600",
+  "fresh_checks": "88 passed, lint passed, TypeScript/Vite build passed",
+  "final_restart_evidence": "restart.json",
+  "cost_evidence": "cost-ledger.json",
+  "browser_observations": [
+    "create and automatic start",
+    "clarification in same revision",
+    "pause and resume",
+    "cancel NEEDS_INPUT terminal",
+    "history revision 2 read-only and actual JSON download",
+    "current revision 3 JSON/Markdown downloads",
+    "source quote detail",
+    "390px match view no overflow; viewport reset",
+    "condition rationale/verification details open",
+    "settings masked keys",
+    "home tour Next/Back/Got it; dialog removed"
+  ],
+  "inflight_cancel_and_budget_exhaustion": "isolated integration tests with paid provider fixtures; no live claim"
+}

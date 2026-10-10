@@ -1,125 +1,112 @@
-# Final Acceptance Report — Phase A
+# GoalSift Phase A — 本轮验收报告
 
-**Project**: GoalSift — From Goals to Viable Paths  
-**Phase**: A · V0.2 · Specification Baseline  
-**Date**: 2026-10-10  
-**Verdict**: ✅ **PASS** — Phase A complete
+日期：2026-10-10 · 版本：0.2.1 · 工程交付 Gate：**PASS**
 
-Gate 标准来自 `07_DEVELOPMENT_PLAN.md` §9：全部必需主功能和安全门槛已通过；真实模型与搜索在已授权预算内执行；状态恢复及修订功能可用；案例结果可追溯并真实；界面审阅完成；文档可复现；无阻断性未修缺陷。
+本轮基于现有开发完成，没有重建项目。保留用户已有前端设计，补齐真实研究运行、证据校验、恢复和修订、浏览器交互、成本与部署。Phase A 交付供人选择的研究路径；不会执行路径或修改用户的目标项目。研究 COMPLETED 不表示所有目标条件已满足。
 
----
+旧报告中的历史 PASS、案例数量和费用描述不能代替本轮证据。本报告以实际保存的结果为准；没有把 mock 或未重跑的旧 Spike 算作新增 Live 调用。
 
-## 1. What was built
+## 1. 范围与恢复点
 
-一个**目标驱动的 AI 方案研究应用**（本地优先）。用户输入期望结果；应用推导并挑战成立条件、发现真实已有资源、评估证据支撑的适用性、提出可供人选择的路径。Phase A **不执行**选定方案。
+- 开始时 HEAD 为 `2be917c`，旧 tag 为 `phase-a-v0.2`。已有未提交前端改动被保留。
+- 修改前的源文件和 diff 保存在 `/private/tmp/goalsift-completion-recovery/source-before.tar.gz` 和 `existing-changes.patch`；归档排除 .env、依赖和应用数据库；但原测试源码曾包含密钥字面量，因此恢复归档属于本机敏感材料，权限已设为 0600，不纳入 Git 或对外分享。
+- 全部新测试使用临时目录；收费研究使用 `/private/tmp/goalsift-completion-live`。没有向原 `.goalsift_data` 写入测试任务，没有覆盖原 `.env`。
+- 本轮可恢复点为 Git tag `phase-a-v0.2.1`。锁定全部 Python 依赖（108 项）及 npm 依赖。
 
-范式：**Define → Derive → Challenge → Discover → Match → Propose**（研究操作，非六个 Agent）。
+## 2. 实现与里程碑复验
 
-技术栈（M1 实测锁定）：Pydantic AI 2.54.0 + DeepSeek + Exa + FastAPI 0.143.0 + SQLite 3.51.0 + Pydantic 2.14.0 + React/TS/Vite 8.3.4。
-
-## 2. Milestone trail (all PASS)
-
-| M | 里程碑 | Commit | 关键证据 |
-|---|---|---|---|
-| M0 | 安全基线 | `2640561` | git 基线；12 隔离断言；密钥 gitignored |
-| M1 | 技术 Spike | `42421cb` | live 模型/搜索/来源读取；SUPPORTED≠VERIFIED；锁定栈 |
-| M2 | 最小纵向链路 | `ab01f31` | 浏览器→真实模型/搜索→有来源方案；重启持久化 |
-| M3 | 完整范式+证据 | `a25fc12` | Challenge 修改条件；14 负向用例；可追溯 |
-| M4 | 持久化+恢复+修订 | `f63b685` | 崩溃→PAUSED；Refine 新 revision+失效传播；原子回滚 |
-| M5 | 体验+成本+安全 | `e7fd54d` | 预算→PARTIAL；SSRF/注入/脱敏；Settings 无泄漏 |
-| M6 | 最终验收 | (本提交) | 3 跨域案例；范式对比；重新部署演练 |
-
-## 3. Cross-nature live cases (07 §9)
-
-| 案例 | 输入 | 真实结果 | 规范行为 |
-|---|---|---|---|
-| Web | 像 Agent 管理网页 | 4 真实资源(Exa)；5 evidence；SUPPORTED/UNKNOWN/NOT_SATISFIED；proposal READY_FOR_REVIEW | 不默认自造 UI；报告许可/集成缺口 |
-| Game | 3D Boss 战系统 | 5 条件(战斗循环/伤害判定)；4 真实游戏资源；honest UNKNOWN | 体验/组合不可仅靠局部能力保证(01§7) |
-| Ambiguous | "做一个很好的产品" | **NEEDS_INPUT** + 聚焦澄清问题 → 用户答复 → COMPLETED(7 条件/4 资源/方案) | 指出决定性歧义并询问，不编造产品定义(01§9) |
-
-三案例均 `all_live`：真实 DeepSeek + 真实 Exa；无 mock 冒充。
-
-## 4. Paradigm vs one-shot LLM comparison (07 §9)
-
-同输入（Web 目标），不预设范式必胜：
-
-| 维度 | 一次性 LLM | 范式研究 |
+| Gate | 当前实现与证据 | 结果 |
 |---|---|---|
-| 真实来源 URL | 0 | 4（Exa 实查） |
-| 证据/locator | 无 | 5 条 Evidence（含 locator） |
-| 许可证 | 未提及 | UNKNOWN（不推定商用） |
-| 条件 vs 实现手段 | 立即规定 React/Next.js 为必要 | 区分目标必要性与方案依赖；Challenge 降级偷渡技术 |
-| 可追溯性 | 无 | Proposal→Assessment→Condition/Resource/Capability→Evidence |
-| 缺口/风险 | 未暴露 | 显式 UNKNOWN/NOT_SATISFIED + risks |
+| M0 | 原工作保护、归档、临时路径守卫和数据隔离 | PASS |
+| M1 | 保留 Pydantic AI/DeepSeek/Exa/FastAPI/SQLite/React；真实结构化响应、搜索、来源读取和付费失败可观察；完整依赖可安装 | PASS |
+| M2 | 浏览器创建/启动 → 模型理解 → Exa 搜索读取 → 实际来源引句与候选路径 → 文件导出 | PASS |
+| M3 | Define/Derive/Challenge/Discover/Match/Propose；Challenge 可新增/降级/替代条件；确切 ID、原文引句和双向冲突验证；REQUIRED 与 QUALITY 独立 | PASS |
+| M4 | 原子执行所有权、检查点、已收到的逐资源匹配结果、暂停/恢复/取消、重启孤儿恢复、修订快照和失效传播 | PASS |
+| M5 | 原设计上的完整可用界面、引导、错误显示、SSE、历史只读、下载、窄屏、掩码配置、费用持久化和安全边界 | PASS |
+| M6 | 3 个跨域 Live 案例、相同输入的一次性基线、独立制品审计、干净环境部署和最终检查 | PASS |
 
-可观察、非编造的差异：一次性报告凭记忆造架构；范式查真实资源、保留证据、暴露缺口。结论基于证据而非预设。
+主要变更位于 `goalsift/controller.py`、`repository.py`、`budget.py`、`llm_adapter.py`、`search_adapter.py`、`validators.py`、`app.py`、`exporter.py` 和 `security.py`。前端沿用既有 React/Radix/Tailwind 设计及 Driver.js，没有重造组件系统。
 
-## 5. Reproducibility / redeploy drill (07 §9)
+## 3. 本轮确实发生的失败与修复
 
-干净环境演练：
-1. `python3 -m venv .venv` → `pip install -r requirements.txt` → 成功。
-2. `.venv/bin/python -c "import goalsift.app"` → OK。
-3. `.venv/bin/python -m pytest` → **61/61 PASS**（隔离 venv）。
-4. `.venv/bin/python -m uvicorn goalsift.app:app` → health 200；create job；export MD；settings(loopback, keys 配置)。
+1. **SQLite 并发崩溃**：FastAPI 工作线程和 Controller 共享连接，原实现仅锁写操作，读取游标仍与提交竞争。真实服务发生进程崩溃；现对整个数据库操作使用可重入锁，增加并发读写测试。重启把孤儿研究恢复为 PAUSED，再从检查点继续。
+2. **VPN Fake-IP 来源误拒绝**：本机公共域名解析到 `198.18/15`，首版网页研究没有可读取来源，诚实完成为无方案。仅对 Exa 委托读取的 Fake-IP 情况，通过固定 Google HTTPS DNS 再核验 A/AAAA；普通私有地址仍直接拒绝。后续读取获得真实来源。
+3. **费用遗漏**：`asyncio.wait_for` 子任务中的 ContextVar 用量未传回父任务。改为在子任务 finally 提取回执；已付费但结构校验失败的响应也记账，无回执保留预留额，恢复不清零。OpenAI SDK 自动重试已关闭。
+4. **匹配输出超限**：Boss 案例两资源合并匹配产生 5204 输出 token，触发 FAILED。改为逐资源匹配，并在每次付费响应后保存中间结果；恢复不重做已提交批次。
+5. **历史测试密钥**：发现原已提交安全测试使用真实密钥做断言，已替换为合成测试值，当前交付文件精确扫描无残留。历史提交保留，报告明确记录凭据轮换需求。
+6. **导出与窄屏**：浏览器下载链接现使用 download；当前及历史 JSON 实际下载成功。390 px 下修复 Radix 内层 table 撑宽和证据详情横向截断；页面 scrollWidth=390，两个匹配 viewport 均为 340/340。
 
-## 6. Test summary
+这些失败与旧修订仍保留在 `acceptance/2026-10-10/*-events.json`、`web-r1.json` 和历史快照中，没有改写成成功。
 
-| 套件 | 项 | 结果 |
+## 4. 三个真实研究案例
+
+模型为 DeepSeek Flash，搜索/读取为 Exa。澄清与约束由验收操作者在浏览器输入，属于测试场景，不是额外声称用户提出了这些业务要求。
+
+| 案例与最终制品 | 真实结果 | 尚未解决的目标缺口 |
 |---|---|---|
-| M0 isolation | 12 | PASS |
-| M3 validators (negative) | 14 | PASS |
-| M4 state/recovery/revision | 16 | PASS |
-| M5 security/budget | 19 | PASS |
-| **合计** | **61** | **全 PASS** |
+| Agent 网页 · `web-r3.json` | 8 来源资源、8 条件、64 assessments；4 SUPPORTED、1 CONFLICTED；候选 mission-control + 轻量适配层；2 条件有完整来源支持、6 未覆盖 | SSE/启停对接、全依赖许可与成熟视觉均待目标环境验收 |
+| Godot 4 Boss · `game-r1.json` | 8 资源、12 条件、96 assessments；3 SUPPORTED；候选 Jeh3no 第三人称控制器；2 条件有完整来源支持、10 未覆盖 | 没找到有足够证据的完整 Boss 组合；美术、攻击、阶段与 UI 都需继续核查/整合 |
+| 模糊产品 · `vague-r1.json` | 初始 NEEDS_INPUT；回答后同修订完成 5 人自托管任务看板研究；8 资源、12 条件、96 assessments；8 SUPPORTED；候选 Vikunja/Kanboard；6 条件支持、6 未覆盖 | 中文完整度、首选许可原文、同步行为和备份步骤仍需验证 |
 
-Live 证据（非 mock）：M1 四 Spike、M2 E2E、M3 六操作、M4 崩溃+Refine、M5 预算→PARTIAL+Settings 无泄漏、M6 三案例+对比+重新部署。
+三例均有当前候选方案，且均无 VERIFIED。支持级别分布和 SHA256 见 `audit.json`。来源数量是调查范围，不是证明资源成熟、商用合规或美观的分数。
 
-## 7. Security thresholds (07 §8)
+## 5. 一次性模型对比
 
-| 门槛 | 状态 |
-|---|---|
-| SSRF：loopback/private/metadata 拒绝 | ✅ test_ssrf (10) |
-| 提示注入：外部文本作 UNTRUSTED DATA | ✅ test + adapter |
-| 密钥防泄漏：`.env` 服务端；`/api/settings` 仅 `***` | ✅ grep 0 命中 |
-| 日志脱敏：sk/UUID/Bearer → `[REDACTED]` | ✅ test |
-| 隔离：路径守卫；测试不触及用户数据 | ✅ test |
-| 预算硬限：超限→PARTIAL，停止新外部动作 | ✅ live + test |
-| 绑定 loopback | ✅ settings.binding |
+先记录 `EVALUATION_CRITERIA.md`，再按相同目标原话与澄清输入做一次 DeepSeek Flash 请求，禁止搜索。未向基线提供研究已经收集的材料。网页 r3 复用以前读取的材料，因此其耗时不是冷启动耗时。四个基线文件均有真实 token 回执；初次回执丢失的 `web-baseline-probe.json` 不参与评分，但计入费用。
 
-## 8. Invariants preserved (AGENTS.md §6)
+五项各 0–2 分，顺序为：忠于用户、复用/整合划分、已收集来源可追溯、诚实不确定性、决策用途。以下是人工评分，不是自动语义证明。
 
-- 用户原话保留；确认/假设分开 ✅
-- 条件双维度独立（REQUIRED+QUALITY 合法）✅
-- 目标条件 vs 方案依赖区分 ✅
-- 真实来源，不虚构 URL/许可/版本 ✅
-- SUPPORTED≠VERIFIED；UNKNOWN/CONFLICTED/PARTIAL/NOT_SATISFIED 各自独立 ✅
-- 整系统组合检查 ✅
-- Condition→Assessment→Resource→Evidence 可追溯 ✅
-- Phase A 不执行方案 ✅
+| 案例 | 一次性模型五项/总分 | 范式研究五项/总分 | 观察 |
+|---|---|---|---|
+| 网页 | 1/2/0/1/2 = **6** | 2/2/2/2/2 = **10** | 基线给出可用架构，但额外排除 AGPL 等类别；研究保留实际许可来源与本地/托管冲突，视觉未验收 |
+| Boss | 2/1/0/1/2 = **6** | 1/2/2/1/1 = **7** | 基线未检索即倾向自写 Boss；研究有真实控制器依据，却未找到美术组合，并增加了未确认的版本/动画细则 |
+| 已澄清看板 | 2/2/0/1/2 = **7** | 1/2/2/1/1 = **7** | 基线更直接；研究暴露许可/中文缺证，但额外收紧实时同步、唯一负责人等细节，且部分许可解释没有足够来源 |
 
-## 9. Known limits
+模糊原始输入另作观察：两种方法都提出澄清；应用确实暂停为 NEEDS_INPUT，得到答复后继续。没有把停下来询问当作失败。
 
-- 美观/信息层级的最终判断为**人工审阅**（spec：人工评估不伪称自动证明美观）。前端构建通过、全状态覆盖，但视觉质量需人确认。
-- DeepSeek `deepseek-chat` 映射到 `deepseek-flash`；如需更强推理用 `deepseek-v4-pro`。
-- 预算 USD 未知时仅记 token 用量；价格需手动核验。
-- 不承诺精确续接在途模型/搜索调用（04 §9）；保证已提交数据持久。
-- 失效传播为 revision 粒度（标记 NEEDS_REVIEW），未做细粒度自动依赖推理（05 §12 允许）。
-- V0.2 主要覆盖软件/数字生产资源；专业现场条件领域暴露边界（01 §7）。
-- Phase B（选定方案后的受控生产执行）保留为未来独立阶段。
+| 案例 | 研究模型回执数/工具调用/有效运行秒 | 研究已知保守费用 | 一次性请求/秒/费用 |
+|---|---|---|---|
+| 网页 r3 | 15 / 2 / 113.53 | $0.0500969 | 1 / 17.90 / $0.0039765 |
+| Boss r1（含恢复） | 17 / 11 / 245.76 | $0.0893978 + $0.021 未对账预留 | 1 / 12.03 / $0.0029745 |
+| 看板 r1（含澄清） | 16 / 11 / 190.30 | $0.0753194 | 1 / 9.86 / $0.0024126 |
 
-## 10. Deliverables
+观察结论：研究增加了可检查的真实来源和失败/缺口信息，也显著增加时间与费用；未证明所有案例的建议更好。新提示已加强未确认阈值应为 OPTIONAL、缺文档不能断言必须自建、许可条款不得凭记忆下法律结论；上述旧输出原样保留，不能把提示调整冒称为旧结果已纠正。界面新增条件推导依据/验收方式，方便人工复核和 Refine。
 
-- 可运行源代码：`goalsift/`（后端）+ `frontend/`（前端）。
-- 配置模板：`.env.example`。
-- 启动说明：`README.md`。
-- 测试：`tests/`（61 项）+ `spikes/`（live 证据）。
-- 三实际案例：见本报告 §3 + 各 M 报告。
-- 导出样例：`/api/jobs/{id}/export`（MD + JSON）。
-- 已知限制：本报告 §9。
-- 可恢复 Git tag：`phase-a-v0.2`。
+## 6. 费用核对（用户授权：本轮新增不超过 $1）
 
-## 11. Verdict
+`cost-ledger.json` 包含全部网页 r1/r2/r3、Boss、模糊目标、四个基线及两次早期回执丢失探针：
 
-**Phase A: PASS.** 全部里程碑 M0–M6 通过；真实模型与搜索在授权预算内执行；状态恢复与修订可用；案例可追溯并真实；安全门槛满足；无阻断性未修缺陷。
+- DeepSeek 保守峰值 token 单价 + Exa `costDollars`：**$0.3249574**。
+- 无回执/中断请求按完整请求上界保留：**$0.0738**。
+- 本轮保守核算合计：**$0.3987574**，低于授权 $1；不是提供商账单，没有借助缓存折扣把金额压低。
 
-> 服务不可用应记 BLOCKED；本报告所有 Live 证据均为真实执行，无伪造。
+预算在请求前预留；已知费用、预留、未知费用分别显示。每修订累计，Resume 不清零。当前验收预览上限为每修订 $0.20、40 动作、20 工具、600 秒；默认设置较小，复杂研究可能合理地成为 PARTIAL。更换模型需核对单价，API 本身没有本应用可控制的硬账单上限。
+
+## 7. 检查、浏览器与重新部署
+
+- 初始 61 测试通过；新集成/负向用例补齐真实 Controller/SQLite/API 运行边界；最终 **88 passed**。
+- `make check`：pytest 88、oxlint、TypeScript、Vite 生产构建全部通过。
+- `python -m scripts.audit_acceptance`：三个来源图、原文引用、当前修订、覆盖计算与两个浏览器 JSON 导出一致，PASS。该审计仅用标准库，不调用 Controller 的可信写入校验器。
+- 全新 venv 安装 `requirements.lock` 的 108 个固定版本；依赖兼容检查通过。全新源文件副本 npm ci/lint/build 通过，最终在该副本执行 make check，见 `fresh-check.txt`（88 passed）。未复制 `.env` 或生产数据。
+- 新服务启动后，通过浏览器创建研究、继续澄清、保存新修订、下载导出；最后重启最终代码，已完成任务、历史修订和取消终态保留。
+- 实际浏览器观察：创建并自动启动、关键澄清、Refine r2/r3、Game PAUSED 后动作稳定再 Resume、取消 NEEDS_INPUT、历史只读、JSON/Markdown 下载、确切引句详情、设置掩码、桌面/390 px 窄屏、引导和刷新。
+- 在途取消不晚提交、预算耗尽、无来源、服务失败、假引句/ID、未核实许可、doc-only VERIFIED、冲突双证据、并发所有权、事务回滚、条件循环、私有 URL、Fake-IP 公网核验、恢复和隔离等由自动测试覆盖；收费服务使用 fixture，**不算 Live**。
+- SQLite backup API 备份正在运行的隔离库；备份 integrity_check=ok，任务/事件/快照/评估/证据行数与已提交数据一致。
+
+截图：`proposal-desktop.jpg`、`match-mobile.jpg`、`paused.jpg`、`cancelled.jpg`、`settings.jpg`。使用临时窄屏覆盖后恢复默认视口。视觉审阅是操作者对信息层级、截断、溢出、空/错误状态的人工检查，没有自动证明“美观”。
+
+## 8. 安全与实际限制
+
+- 服务仅绑定 loopback；同数据目录单服务/worker，任务单所有权；恶意跨站写和非本地主机拒绝。
+- 密钥在 `.env` 服务端读取，设置掩码，错误/导出脱敏；最终源文件、截图和验收制品已通过真实配置值的精确匹配扫描，没有密钥。扫描发现旧 HEAD 的 `tests/test_m5_security.py` 含两个真实密钥字面量，现已替换为合成值。旧 Git 历史和恢复归档仍含旧值；未重写历史，建议用户更换 DeepSeek/Exa 凭据，公开仓库前另行处理旧历史。
+- 不执行检索内容；协议/端口/凭据/私有地址/重定向/响应大小/超时受限。Google DoH 仅发送公开来源域名，证书验证保持开启。Exa 委托抓取的远端重定向和内容生成受提供商控制，本机不会直接跟随任意源 URL。
+- 模型输出/原文都是不可信数据。确切引句和引用存在性可验证，**原文解释是否正确仍需人工判断**；本轮跨域结果确实存在更严的推导细则和不足的组合调查，已计入评分。
+- 候选最多 8 个、搜索最多 3 轮、连续两轮无新内容停止；这种调查范围不能证明其他可复用资源不存在。
+- 暂停会等在途请求完成，取消不能撤销已发生费用；进程中断不能保证追回在途账单，但会保留预留额和已提交资料。
+- 当前无账号/多租户/跨设备协同，适合本地单用户。目标环境接口、视觉、性能、3D 组合、完整许可与生产执行属于后续采用/验收工作。
+
+## 9. 交付与复现入口
+
+`README.md`、`.env.example`、`Makefile`、`requirements.lock`、前端 lockfile、后端/前端源代码、88 项测试、备份/基线/独立审计脚本、全部脱敏验收制品及 tag `phase-a-v0.2.1`。
+
+正常启动：`make install` → 配置自己的 `.env` → `make check` → `make run` → `http://127.0.0.1:8000`。原 `.env` 已存在时不要覆盖。验收预览使用独立数据目录，与正常启动的数据分开。

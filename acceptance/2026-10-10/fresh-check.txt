@@ -1,0 +1,23 @@
+/private/tmp/goalsift-completion-redeploy/.venv/bin/python -m pytest
+........................................................................ [ 81%]
+................                                                         [100%]
+88 passed in 1.52s
+cd frontend && npm run lint && npm run build
+
+> frontend@0.0.0 lint
+> oxlint
+
+
+> frontend@0.0.0 build
+> tsc -b && vite build
+
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 2029 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.48 kB │ gzip:   0.32 kB
+dist/assets/index-C4Rv2evI.css   59.21 kB │ gzip:  10.11 kB
+dist/assets/index-DwDr25jH.js   495.67 kB │ gzip: 152.40 kB
+
+✓ built in 172ms

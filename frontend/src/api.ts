@@ -1,4 +1,4 @@
-export const API = "http://127.0.0.1:8000";
+export const API = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export type JobStatus =
   | "CREATED" | "RESEARCHING" | "NEEDS_INPUT" | "PAUSED"
@@ -10,6 +10,8 @@ export interface GoalBrief {
   original_user_text: string;
   revision: number;
   open_questions?: string[];
+  constraints?: {text: string; provenance: string}[];
+  assumptions?: {text: string; provenance: string}[];
 }
 
 export interface Condition {
@@ -17,6 +19,8 @@ export interface Condition {
   statement: string;
   obligation: "REQUIRED" | "OPTIONAL";
   dimension: "FUNCTIONAL" | "QUALITY" | "COMPLIANCE" | "OTHER";
+  origin?: string;
+  verification_method?: string;
 }
 
 export interface ResourceItem {
@@ -42,6 +46,9 @@ export interface AssessmentItem {
   status: "VERIFIED" | "SUPPORTED" | "PARTIAL" | "NOT_SATISFIED" | "UNKNOWN" | "CONFLICTED";
   explanation: string;
   gaps: string[];
+  resource_ids?: string[];
+  capability_ids?: string[];
+  evidence_ids?: string[];
 }
 
 export interface ProposalItem {
@@ -52,6 +59,10 @@ export interface ProposalItem {
   costs: Record<string, unknown>;
   recommendation_reason: string;
   validity_status: string;
+  integration_work?: string[];
+  new_work?: string[];
+  assessment_ids?: string[];
+  uncovered_conditions?: string[];
 }
 
 export interface JobResult {
@@ -65,6 +76,9 @@ export interface JobResult {
   evidence: EvidenceItem[];
   assessments: AssessmentItem[];
   proposal: ProposalItem | null;
+  budget_usage?: UsageSnapshot;
+  stopped_reason?: string | null;
+  delivery_notes?: string[];
 }
 
 export interface JobListItem {
@@ -98,12 +112,12 @@ export async function getJob(id: string): Promise<JobResult> {
 
 export async function startJob(id: string): Promise<void> {
   const r = await fetch(`${API}/api/jobs/${id}/start`, { method: "POST" });
-  if (!r.ok && r.status !== 409) throw new Error(`start failed: ${r.status}`);
+  if (!r.ok) throw new Error(`start failed: ${r.status} ${await r.text()}`);
 }
 
 export async function cancelJob(id: string): Promise<void> {
   const r = await fetch(`${API}/api/jobs/${id}/cancel`, { method: "POST" });
-  if (!r.ok && r.status !== 409) throw new Error(`cancel failed: ${r.status}`);
+  if (!r.ok) throw new Error(`cancel failed: ${r.status} ${await r.text()}`);
 }
 
 export async function sendInput(id: string, text: string): Promise<void> {
@@ -116,8 +130,8 @@ export async function sendInput(id: string, text: string): Promise<void> {
   if (!r.ok) throw new Error(`input failed: ${r.status} ${await r.text()}`);
 }
 
-export function exportUrl(id: string, fmt: "markdown" | "json"): string {
-  return `${API}/api/jobs/${id}/export?fmt=${fmt}`;
+export function exportUrl(id: string, fmt: "markdown" | "json", revision?: number): string {
+  return `${API}/api/jobs/${id}/export?fmt=${fmt}${revision ? `&revision=${revision}` : ""}`;
 }
 
 export interface Settings {
@@ -142,7 +156,11 @@ export async function getSettings(): Promise<Settings> {
 export interface UsageSnapshot {
   actions?: number;
   tool_calls?: number;
-  cost_usd?: number;
+  cost_usd?: number | null;
+  input_tokens?: number;
+  output_tokens?: number;
+  cost_unknown?: boolean;
+  reserved_usd?: number;
   elapsed_seconds?: number;
   stopped_reason?: string | null;
   [k: string]: unknown;
@@ -150,6 +168,8 @@ export interface UsageSnapshot {
 
 export interface EventItem {
   event_id?: string;
+  cursor?: number;
+  revision?: number;
   event_type: string;
   status?: string;
   timestamp?: string;
@@ -158,36 +178,38 @@ export interface EventItem {
   tool?: string;
 }
 
-/** SSE subscription that resyncs from last event id (04 §10). */
+/** Native SSE reconnects with Last-Event-ID. Workspace restarts streams for new runs. */
 export function subscribeEvents(
   jobId: string,
   onEvent: (e: EventItem) => void,
-  onDone: () => void
+  onDone: () => void,
+  last = 0,
+  onError?: () => void,
 ): () => void {
-  const ctrl = new AbortController();
-  fetch(`${API}/api/jobs/${jobId}/events`, { signal: ctrl.signal, headers: { Accept: "text/event-stream" } })
-    .then(async (resp) => {
-      if (!resp.body) return;
-      const reader = resp.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const parts = buf.split("\n\n");
-        buf = parts.pop() || "";
-        for (const part of parts) {
-          const line = part.replace(/^data: /, "").trim();
-          if (!line) continue;
-          try {
-            const ev = JSON.parse(line) as EventItem;
-            onEvent(ev);
-            if (ev.event_type === "DONE") { onDone(); return; }
-          } catch { /* skip partial */ }
-        }
-      }
-    })
-    .catch(() => {});
-  return () => ctrl.abort();
+  const stream = new EventSource(`${API}/api/jobs/${jobId}/events?last=${last}`);
+  stream.onmessage = ({ data }) => {
+    try {
+      const ev = JSON.parse(data) as EventItem;
+      if (ev.event_type === "DONE") { stream.close(); onDone(); return; }
+      onEvent(ev);
+    } catch { onError?.(); }
+  };
+  stream.onerror = () => onError?.();
+  return () => stream.close();
+}
+
+export async function pauseJob(id: string): Promise<void> {
+  const r = await fetch(`${API}/api/jobs/${id}/pause`, { method: "POST" });
+  if (!r.ok) throw new Error(`pause failed: ${r.status} ${await r.text()}`);
+}
+export interface RevisionItem { revision: number; created_at: string }
+export async function listRevisions(id: string): Promise<RevisionItem[]> {
+  const r = await fetch(`${API}/api/jobs/${id}/revisions`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+export async function getRevision(id: string, revision: number): Promise<JobResult> {
+  const r = await fetch(`${API}/api/jobs/${id}/revisions/${revision}`);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
 }

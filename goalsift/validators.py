@@ -64,6 +64,29 @@ def validate_references(
     cap_ids = _index(c.id for c in capabilities)
     ev_ids = _index(e.id for e in evidence)
     ass_ids = _index(a.id for a in assessments)
+    edges = {c.id: [] for c in conditions}
+    for c in conditions:
+        for relation in c.relations:
+            kind, targets = relation.get('type'), relation.get('target_ids')
+            if kind not in ('ALL_OF', 'ANY_OF', 'REQUIRES') or not isinstance(targets, list) or not targets:
+                problems.append(f'condition {c.id} invalid relation; use type + target_ids')
+                continue
+            for target in targets:
+                if target not in cond_ids or target == c.id:
+                    problems.append(f'condition {c.id} invalid relation target {target}')
+                else:
+                    edges[c.id].append(target)
+    visited, visiting = set(), set()
+    def visit(cid):
+        if cid in visiting:
+            problems.append(f'condition {cid} relation cycle')
+            return
+        if cid in visited: return
+        visiting.add(cid)
+        for target in edges[cid]: visit(target)
+        visiting.remove(cid)
+        visited.add(cid)
+    for cid in edges: visit(cid)
 
     for coll, label in [
         (conditions, "condition"), (resources, "resource"),
@@ -113,6 +136,9 @@ def validate_references(
         for cid in p.condition_coverage:
             if cid not in cond_ids:
                 problems.append(f"proposal {p.id} -> missing condition {cid}")
+        for cid in p.uncovered_conditions:
+            if cid not in cond_ids:
+                problems.append(f"proposal {p.id} -> missing uncovered condition {cid}")
 
     return problems
 
@@ -180,7 +206,7 @@ def validate_traceability(
         c = cond_by_id.get(a.condition_id)
         if not c:
             problems.append(f"proposal {proposal.id} -> assessment {aid} -> missing condition")
-        if not a.evidence_ids:
+        if not a.evidence_ids and a.status != AssessmentStatus.UNKNOWN:
             problems.append(f"proposal {proposal.id} -> assessment {aid} has no evidence")
         for eid in a.evidence_ids:
             if eid not in ev_by_id:
@@ -263,6 +289,8 @@ def validate_conflict_handling(
     never VERIFIED/SUPPORTED/NOT_SATISFIED."""
     problems: list[str] = []
     for a in assessments:
+        if a.status == AssessmentStatus.CONFLICTED and not detect_conflict(a, evidence):
+            problems.append(f"assessment {a.id} CONFLICTED requires supporting and refuting evidence")
         if detect_conflict(a, evidence) and a.status != AssessmentStatus.CONFLICTED:
             problems.append(
                 f"assessment {a.id} has SUPPORTS+REFUTES evidence but status="

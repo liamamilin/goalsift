@@ -1,6 +1,6 @@
 [project]
 name = "goalsift"
-version = "0.2.0a0"
+version = "0.2.1"
 description = "Goal-driven AI solution-research application (Phase A)"
 requires-python = ">=3.10"
 readme = "README.md"

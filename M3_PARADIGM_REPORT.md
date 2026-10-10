@@ -1,3 +1,15 @@
+# 2026-10-10 当前复验 — M3 六操作与可信证据复验
+
+**当前 Gate：PASS**。本节与 [FINAL_ACCEPTANCE_REPORT.md](FINAL_ACCEPTANCE_REPORT.md) 为本轮证据；下方旧报告保留为历史，历史数字/推测不能代替当前复验。
+
+- 实际行为与复用：六操作均实际执行；Challenge 能新增/降级/替代条件。精确引用、引句必须来自对应真实读取来源；文档不得升 VERIFIED。CONFLICTED 必须有确切支持和反驳引句；条件关系校验引用与循环。
+- 变更与证据：goalsift/controller.py、validators.py、llm_adapter.py；tests/test_runtime_integration.py。
+- 执行/观察：三案例制品独立审计 PASS；网页 r3 包含 1 个真实 CONFLICTED，3 案例无 VERIFIED；假 ID/引句、双证据缺失、循环等负向测试通过。
+- Mock/Live：本轮三例 DeepSeek/Exa 及一次性基线为真实收费调用；自动负向和恢复测试只替换付费提供商，不计作 Live。
+- 恢复点：修改前归档与 `2be917c`；最终 `phase-a-v0.2.1`。测试在临时数据根，无目标项目执行。
+- 限制与下一步：本节 Gate PASS；引句真实性不等于语义判断无误。跨域推导与建议不足如实见最终报告评分表；人工可检查依据并 Refine。
+
+<!-- historical-report -->
 # M3 Report — Full Paradigm & Evidence Validation
 
 **Milestone**: M3 — 完整范式与证据校验  
