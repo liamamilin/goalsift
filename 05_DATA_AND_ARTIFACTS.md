@@ -39,12 +39,16 @@
 | `assumptions[]` | 未确认但分析中暂用的假设 |
 | `open_questions[]` | 可能影响方案空间的问题 |
 | `revision` | 当前目标修订号 |
+| `condition_decisions[]` | 用户对条件的确认、修改、移出决定，含原条件 ID、原文、现文、等级、维度、验收方式、决定修订和来源 |
+| `assumption_decisions[]` | 用户对假设的确认/移除决定，含原文、动作、修订及来源 |
 
 每条 requirement/constraint 有 `provenance`：`USER_STATED`、`USER_CONFIRMED` 或 `SYSTEM_ASSUMED`。系统假设不能静默成为已确认事实。用户修改目标时增加 revision。
 
 ## 5. Condition
 
-字段：`id`, `statement`, `obligation`, `dimension`, `origin`, `source_refs[]`, `scope`, `verification_method`, `relations[]`, `validity_status`, `revision_created`。
+字段：`id`, `statement`, `obligation`, `dimension`, `origin`, `provenance`, `source_refs[]`, `scope`, `verification_method`, `relations[]`, `validity_status`, `revision_created`。
+
+`provenance` 使用 Goal 的三个来源枚举。系统推导与旧记录默认 `SYSTEM_ASSUMED`；只有明确用户操作产生 `USER_CONFIRMED`，不影响 Assessment 满足状态。用户决定保留到后续 Refine，确认的条件由确定性代码恢复并禁止 Challenge 自动改写。移出记录保留，不物理删除历史。已移出或被替换的原文从后续推导中过滤，并明确告知模型；语义不同的改写仍需用户复核。旧历史快照不回填新字段，读取端用兼容默认值。
 
 **两个独立维度：**
 
@@ -142,6 +146,8 @@ Resource/Capability/Evidence changed
 不要求实现通用自动推理图数据库；使用显式 ID 引用、数据库事务与受影响对象查询即可。不得将引用不存在的对象提交为正式状态。
 
 ## 13. Artifacts / 导出
+
+当前结果与完成快照可附带 `source_reviews`：按 Resource ID 记录补充读取状态 `READ`/`UNAVAILABLE`、实际取得的文档 URL/类别/版本，以及缺失或失败说明。这是来源收集投影，不是 Job 状态或能力满足结论；读取文档不能自动变成 SUPPORTED/VERIFIED。GitHub 默认分支的根目录文件最多按许可、接口/使用、依赖与部署各读取一份，文件 SHA 与读取时间保存在 Evidence。原文引用允许确定性地校正空白差异；引用编号错误时仅可在该资源、该次模型实际收到的来源中唯一定位，持久化原始引句，不凭相似含义修复。
 
 用户侧提供六个**逻辑视图**，不是六份数据库或独立文件：
 

@@ -237,6 +237,10 @@ class Goal(_Base):
     open_questions: list[str] = Field(default_factory=list)
     revision: int = 1
     original_user_text: str = ""  # never overwritten
+    # Explicit review decisions survive later model derivations. Removed items
+    # remain here for traceability; they are never physical deletions.
+    condition_decisions: list[dict[str, Any]] = Field(default_factory=list)
+    assumption_decisions: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # --- Condition (05 §5) -------------------------------------------------------
@@ -247,6 +251,7 @@ class Condition(_Base):
     obligation: Obligation
     dimension: Dimension
     origin: str
+    provenance: Provenance = Provenance.SYSTEM_ASSUMED
     source_refs: list[str] = Field(default_factory=list)
     scope: str | None = None
     verification_method: str | None = None

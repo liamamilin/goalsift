@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "live_job": "job_7f396bd6fd70462b",
+  "r1_status": "COMPLETED",
+  "r2_status": "COMPLETED",
+  "conditions": 7,
+  "resources": 8,
+  "assessments": 56,
+  "assessment_statuses": {
+    "UNKNOWN": 32,
+    "PARTIAL": 13,
+    "SUPPORTED": 10,
+    "CONFLICTED": 1
+  },
+  "proposal_coverage": 5,
+  "uncovered": 2,
+  "confirmed_conditions_preserved": 7,
+  "distinct_source_reviews": 2,
+  "deep_documents": 10,
+  "old_snapshot_unchanged": true,
+  "valid_references": true,
+  "exact_source_quotes": true,
+  "current_export_consistent": true,
+  "no_duplicate_repository_candidates": true,
+  "no_model_verified": true,
+  "ledger": {
+    "prior_authorized_spend": 0.3987574,
+    "r1_conservative_cost": 0.065635,
+    "r2_conservative_cost": 0.0567802,
+    "github_cost": 0,
+    "new_total": 0.1224152,
+    "cumulative_total": 0.5211726,
+    "authorization": 1,
+    "remaining": 0.4788274,
+    "cost_basis": "conservative model peak rates plus Exa response costDollars, no outstanding reservations"
+  },
+  "regression_tests": 102,
+  "preview_restart_health": {
+    "ok": true,
+    "version": "0.2.1"
+  },
+  "preview_history_after_restart_unchanged": true,
+  "same_revision_history_excludes_unsaved_draft": true,
+  "current_view_return_discards_history_test_draft": true
+}

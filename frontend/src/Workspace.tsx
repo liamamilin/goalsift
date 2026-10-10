@@ -4,6 +4,7 @@ import {
   type AssessmentItem, type Condition, type EventItem, type JobResult, type JobStatus,
   type ProposalItem, type ResourceItem,
 } from "./api";
+import { GoalReviewView } from "./GoalReview";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -363,6 +364,7 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
               <CardContent className="p-4">
                 <SectionLabel icon={<Target className="h-3.5 w-3.5" />}>{job.goal?.purpose ? "目标理解" : "原始需求"}</SectionLabel>
                 <p className="mt-2 line-clamp-3 text-sm leading-relaxed">{job.goal?.purpose || job.original_request}</p>
+                <button className="mt-2 text-xs font-medium text-primary hover:underline" onClick={() => onTabChange('conditions')}>复核目标与条件 · {job.conditions.filter(c => c.provenance !== 'USER_CONFIRMED').length} 项待确认</button>
                 <Accordion type="single" collapsible>
                   <AccordionItem value="original-request" className="border-0">
                     <AccordionTrigger className="py-2.5 text-xs">查看原始需求</AccordionTrigger>
@@ -454,56 +456,14 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
         </TabsContent>
 
         <TabsContent value="conditions" className="mt-4">
-          <p className="mb-4 text-xs leading-relaxed text-muted-foreground">以下条件由研究推导。超出已确认目标的细节需先确认，可通过 Refine 调整。</p>
-          {job.conditions.length ? (
-            <div className="space-y-3">
-              {job.conditions.map((c) => {
-                const linkedAssessments = (job.assessments || []).filter((a) => a.condition_id === c.id);
-                return (
-                  <Card key={c.id} className="gap-0 overflow-hidden py-0">
-                    <CardContent className="p-4">
-                      <div className="flex flex-col items-start gap-3 sm:flex-row">
-                        <div className="flex shrink-0 gap-1.5">
-                          <Badge variant="outline" className={cn("text-[10px]", c.obligation === "REQUIRED" && "border-primary text-primary")}>{c.obligation}</Badge>
-                          <Badge variant="outline" className="text-[10px]">{c.dimension}</Badge>
-                        </div>
-                        <p className="flex-1 text-sm leading-relaxed">{c.statement}</p>
-                      </div>
-                      <details className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                        <summary className="cursor-pointer">推导依据与验收方式</summary>
-                        <p className="mt-2 break-words">依据：{c.origin || "未记录"}</p>
-                        <p className="mt-2 break-words">验收：{c.verification_method || "待确认"}</p>
-                      </details>
-                      {linkedAssessments.length > 0 && (
-                        <details className="mt-3 border-t pt-3">
-                          <summary className="cursor-pointer text-xs text-muted-foreground">查看 {linkedAssessments.length} 项资源评估</summary>
-                          <div className="mt-2 space-y-1.5">
-                          {linkedAssessments.map((a) => (
-                            <button
-                              key={a.id}
-                              onClick={() => { setSelA(a.id); onTabChange("match"); }}
-                              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-accent"
-                            >
-                              <Badge className={cn("shrink-0 text-[10px]", ASSESS_TONE[a.status] || "bg-muted")}>{a.status}</Badge>
-                              <span className="line-clamp-2 flex-1 text-xs leading-relaxed text-muted-foreground">{a.explanation}</span>
-                            </button>
-                          ))}
-                          </div>
-                        </details>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          ) : <EmptyTab label="No conditions derived yet" />}
+          <GoalReviewView key={`${job.id}:${job.revision}:${historyJob ? 'history' : 'current'}`} job={job} readOnly={!!historyJob} onSaved={load} onAssessment={(id) => { setSelA(id); onTabChange("match"); }} />
         </TabsContent>
 
-        <TabsContent value="resources" className="mt-4">
+        <TabsContent value="resources" className="mt-4 min-w-0 [overflow-wrap:anywhere]">
           {job.resources.length ? (
-            <div className="grid gap-3">
+            <div className="grid min-w-0 grid-cols-1 gap-3">
               {job.resources.map((r) => (
-                <Card key={r.id} className="gap-0 py-0 transition-shadow hover:shadow-sm">
+                <Card key={r.id} className="min-w-0 gap-0 py-0 transition-shadow hover:shadow-sm">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -513,13 +473,19 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
                         </div>
-                        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{r.description}</p>
+                        <ReadableText text={r.description} label="资源说明" className="mt-1.5 text-xs leading-relaxed text-muted-foreground" />
                         <div className="mt-2 flex items-center gap-2">
                           <Badge variant="outline" className="text-[10px]">{r.kind}</Badge>
                           <Badge variant="outline" className={cn("text-[10px]", r.license_claim === "UNKNOWN" ? "border-warning text-warning" : "")}>
                             {r.license_claim || "UNKNOWN"}
                           </Badge>
                         </div>
+                        {job.source_reviews?.[r.id] && <details className="mt-3 border-t pt-3 text-xs">
+                          <summary className="cursor-pointer text-muted-foreground">补充文档 · {job.source_reviews[r.id].documents.length} 份已读取</summary>
+                          <p className="mt-2 leading-relaxed text-muted-foreground">记录实际读取的原文；能力、许可适用性与集成仍需逐项判断。</p>
+                          <ul className="mt-2 space-y-2">{job.source_reviews[r.id].documents.map(d => <li key={d.url}><a href={d.url} target="_blank" rel="noreferrer" className="break-all text-primary hover:underline">{d.category} <ExternalLink className="inline h-3 w-3" /></a>{d.version && <span className="ml-2 font-mono text-[10px] text-muted-foreground">{d.version.slice(0, 12)}</span>}</li>)}</ul>
+                          {job.source_reviews[r.id].notes.map((note, i) => <p key={i} className="mt-2 leading-relaxed text-warning">{note}</p>)}
+                        </details>}
                       </div>
                     </div>
                   </CardContent>

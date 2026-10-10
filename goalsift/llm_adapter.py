@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import math
 from contextvars import ContextVar
-from typing import Any
+from typing import Any, Literal
 from pydantic import BaseModel, Field
 from openai import AsyncOpenAI
 from pydantic_ai import Agent
@@ -43,6 +43,7 @@ class ChallengeFinding(BaseModel):
     recommendation: str
     replacement: str = ''
     dimension: str = 'FUNCTIONAL'
+    obligation: Literal['REQUIRED', 'OPTIONAL'] = 'OPTIONAL'
 class ChallengeReport(BaseModel):
     findings: list[ChallengeFinding]
     revised: bool = False
@@ -171,6 +172,8 @@ class LLMAdapter:
             'Unstated version thresholds, performance targets, account roles, real-time synchronization '
             'and exact asset/animation lists are assumptions: mark them OPTIONAL unless necessary '
             'for the stated outcome; explain that distinction in rationale. '
+            'User review decisions override earlier wording. Do not re-add removed conditions or assumptions, '
+            'paraphrase a confirmed condition into a new condition, or undo explicit user edits. '
             'Include a concrete verification method.', ConditionSet, goal_text)
         return r.conditions
 
@@ -179,7 +182,9 @@ class LLMAdapter:
             'Remove or mark_optional unstated hard constraints and arbitrary acceptance thresholds. '
             'Return concrete findings: keep, mark_optional, supersede or add_condition. '
             'For added/replacement conditions provide a condition statement in replacement, '
-            'and its dimension. Missing conditions need not target an existing condition.',
+            'and its dimension and obligation. Unstated preferences must be OPTIONAL; only necessary '
+            'conditions of the explicit outcome may be REQUIRED. Never change USER_CONFIRMED conditions '
+            'or reintroduce removed conditions or assumptions. Missing conditions need not target an existing condition.',
             ChallengeReport, f'Goal: {goal_text}\nConditions: {conditions}')
 
     async def plan_search(self, goal_text: str, conditions: list[dict], gaps: list[str], previous: list[str]):
@@ -199,6 +204,8 @@ class LLMAdapter:
             'opposing exact refuting_quote/refuting_evidence_ids. Match in current context, including '
             'Keep explanations within 160 characters and exact quotes within 180 characters. '
             'commercial license constraints. A missing license is UNKNOWN, not proof of noncompliance. '
+            'Repository license metadata identifies a license; commercial compatibility requires '
+            'quoting actual license terms and checking scope, not inferring permission from the identifier alone. '
             'Check whole-system compatibility and prerequisites.', MatchSet, prompt)
         return r.matches
 
@@ -208,7 +215,8 @@ class LLMAdapter:
                 | {'explanation': m.get('explanation', '')[:80],
                    'gaps': '; '.join(m.get('gaps', []))[:60]} for m in raw]
         catalog = [{k: r[k] for k in ('id', 'name', 'canonical_source', 'license_claim') if k in r}
-                   | {'description': r.get('description', '')[:350]} for r in resources]
+                   | {'description': r.get('description', '')[:350],
+                      'read_documents': r.get('read_documents', [])[:5]} for r in resources]
         return await self._run('propose', 'Draft a credible candidate path from the supplied assessments. '
             'Use resource names in prose, exact IDs only in resource_ids. Summary under 700 characters, '
             'recommendation_reason under 400 characters; at most 6 items per list, under 120 characters each. '
@@ -217,5 +225,7 @@ class LLMAdapter:
             'Absence of a documented feature is an unknown, not proof that new development is mandatory. '
             'Do not interpret legal obligations from memory or declare a license compliant without '
             'source support; unresolved license terms remain unknown for human review. '
+            'The read_documents list records files actually retrieved. Do not say a listed file was not '
+            'read; distinguish a retrieved document from insufficient evidence for a particular claim. '
             'Do not invent costs or uninvestigated resources.', ProposalDraft,
             f'Goal: {goal_text}\nResources: {external_content_as_data(str(catalog))}\nAssessments: {data}')

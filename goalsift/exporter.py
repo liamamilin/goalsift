@@ -18,10 +18,13 @@ def to_markdown(repo: Repository, job_id: str, *, view: dict | None = None) -> s
              '- 范围：公开来源的方案研究；方案尚未执行，来源支持不等于目标环境验收。', '', '## 目标', '']
     if goal:
         lines += [goal['statement'], '', '**用户原话：** ' + goal['original_user_text']]
-        for name, label in [('constraints', '约束'), ('assumptions', '未确认假设'), ('open_questions', '待确认问题')]:
+        for name, label in [('constraints', '用户要求与已确认前提'), ('assumptions', '未确认假设'), ('open_questions', '待确认问题')]:
             if goal.get(name):
                 lines += ['', '**' + label + '**']
-                for item in goal[name]: lines.append('- ' + (item.get('text', str(item)) if isinstance(item, dict) else str(item)))
+                for item in goal[name]:
+                    lines.append('- ' + (f"[{item.get('provenance', 'SYSTEM_ASSUMED')}] " + item.get('text', str(item)) if isinstance(item, dict) else str(item)))
+        for decision in goal.get('condition_decisions', []):
+            if decision['action'] == 'remove': lines.append(f"- 已移出目标（r{decision['revision']}）：{decision['original_statement']}")
     lines += ['', '## 候选路径', '']
     if proposal:
         lines += ['### ' + proposal['title'], '', proposal['summary'], '',
@@ -36,11 +39,14 @@ def to_markdown(repo: Repository, job_id: str, *, view: dict | None = None) -> s
     evidence = {e['id']: e for e in d['evidence']}
     for c in conditions.values():
         lines += [f'- **[{c["obligation"]} / {c["dimension"]}]** {c["statement"]} (`{c["id"]}`)',
+                  '  - 确认来源：' + c.get('provenance', 'SYSTEM_ASSUMED'),
                   '  - 依据：' + c['origin'], '  - 验收方式：' + (c.get('verification_method') or '未确认')]
     lines += ['', '## 资源与许可', '']
     for r in resources.values():
         lines += [f'- **{r["name"]}** — 许可：{r.get("license_claim") or "UNKNOWN"}',
                   '  - 来源：' + r['canonical_source'], '  - ' + r['description']]
+        for doc in d.get('source_reviews', {}).get(r['id'], {}).get('documents', []):
+            lines.append(f"  - 补充文档（{doc['category']}）：{doc['url']}；版本 {doc.get('version') or 'UNKNOWN'}")
     lines += ['', '## 条件匹配与证据', '']
     for a in d['assessments']:
         condition = conditions.get(a['condition_id'], {}).get('statement', a['condition_id'])

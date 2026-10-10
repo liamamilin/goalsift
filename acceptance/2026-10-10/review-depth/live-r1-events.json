@@ -1,0 +1,908 @@
+[
+  {
+    "cursor": 1,
+    "event_id": "ev_bb5853b71e2b49c3",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "CREATED",
+    "timestamp": "2026-10-10T11:56:58.382899+00:00",
+    "related": [
+      "job_7f396bd6fd70462b"
+    ],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 2,
+    "event_id": "ev_116d9fd0b58a41f7",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "RESEARCHING",
+    "timestamp": "2026-10-10T11:56:58.385138+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 3,
+    "event_id": "ev_7489c5398ad84eca",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "AMBIGUITY_CHECKED_STARTED",
+    "timestamp": "2026-10-10T11:56:58.385657+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 4,
+    "event_id": "ev_985ce4291c324ec6",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "AMBIGUITY_CHECKED",
+    "timestamp": "2026-10-10T11:57:07.182542+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 465,
+      "output_tokens": 1422,
+      "model_requests": 1,
+      "cost_usd": 0.0018459,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 5,
+    "event_id": "ev_531a1035e755401c",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "DEFINED_STARTED",
+    "timestamp": "2026-10-10T11:57:07.182950+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 6,
+    "event_id": "ev_853f2671db324963",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "DEFINED",
+    "timestamp": "2026-10-10T11:57:09.490001+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 542,
+      "output_tokens": 375,
+      "model_requests": 1,
+      "cost_usd": 0.0006126,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 7,
+    "event_id": "ev_de3c15728bc7431f",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "DERIVED_STARTED",
+    "timestamp": "2026-10-10T11:57:09.490947+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 8,
+    "event_id": "ev_9333626829b0417a",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "DERIVED",
+    "timestamp": "2026-10-10T11:57:16.733272+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 672,
+      "output_tokens": 1339,
+      "model_requests": 1,
+      "cost_usd": 0.0018084,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 9,
+    "event_id": "ev_f1fc5629bfa142a4",
+    "revision": 1,
+    "event_type": "REVISE",
+    "status": "CHALLENGED_STARTED",
+    "timestamp": "2026-10-10T11:57:16.734719+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 10,
+    "event_id": "ev_1c6a7f31417e4b78",
+    "revision": 1,
+    "event_type": "REVISE",
+    "status": "CHALLENGED",
+    "timestamp": "2026-10-10T11:57:24.449316+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 3765,
+      "output_tokens": 1706,
+      "model_requests": 1,
+      "cost_usd": 0.0031766999999999997,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 11,
+    "event_id": "ev_a0bbd0b9f98241c1",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "SEARCH_PLANNED_STARTED",
+    "timestamp": "2026-10-10T11:57:24.450385+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 12,
+    "event_id": "ev_dcdbb25620f84947",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "SEARCH_PLANNED",
+    "timestamp": "2026-10-10T11:57:25.902918+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 3557,
+      "output_tokens": 124,
+      "model_requests": 1,
+      "cost_usd": 0.0012158999999999998,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 13,
+    "event_id": "ev_4bf3731893e74734",
+    "revision": 1,
+    "event_type": "SEARCH",
+    "status": "SEARCHED_STARTED",
+    "timestamp": "2026-10-10T11:57:25.903432+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 14,
+    "event_id": "ev_45a88e6b2191436d",
+    "revision": 1,
+    "event_type": "SEARCH",
+    "status": "SEARCHED",
+    "timestamp": "2026-10-10T11:57:34.033600+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "cost_dollars": 0.007,
+      "query": "builderz-labs/mission-control open source agent status dashboard license README deployment",
+      "num": 4,
+      "rejected_urls": 0,
+      "request_id": "5dd38ff21b06c96aa4ebf1c4b40eec17"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 15,
+    "event_id": "ev_a37ec47f2d1d4594",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ_STARTED",
+    "timestamp": "2026-10-10T11:57:34.034981+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 16,
+    "event_id": "ev_46aad9fea6754c5c",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ",
+    "timestamp": "2026-10-10T11:57:38.318530+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "read_cost": 0.001,
+      "content_length": 11164,
+      "request_id": "0ce013c46122a6976c1c6e0314ad5633"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 17,
+    "event_id": "ev_8fbb1aa8f5bb4408",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ_STARTED",
+    "timestamp": "2026-10-10T11:57:38.319724+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 18,
+    "event_id": "ev_cd09d472954942b6",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ",
+    "timestamp": "2026-10-10T11:57:42.049704+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "read_cost": 0.001,
+      "content_length": 12000,
+      "request_id": "35ad51c5705d39d66e2e6e5789c4052f"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 19,
+    "event_id": "ev_dd9e06d4d97b4441",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ_STARTED",
+    "timestamp": "2026-10-10T11:57:42.050624+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 20,
+    "event_id": "ev_81813da5b0854505",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ",
+    "timestamp": "2026-10-10T11:57:45.744861+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "read_cost": 0.001,
+      "content_length": 7925,
+      "request_id": "fb1acfb54257967957dae7dd237a9a6d"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 21,
+    "event_id": "ev_a1d662852423428d",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ_STARTED",
+    "timestamp": "2026-10-10T11:57:45.745927+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 22,
+    "event_id": "ev_0dcc3cc3e58b4c3b",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ",
+    "timestamp": "2026-10-10T11:57:49.469467+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "read_cost": 0.001,
+      "content_length": 11685,
+      "request_id": "69204503250bee8163ccea5f0c2cce95"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 23,
+    "event_id": "ev_4023f4fa19ac4bbb",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED_STARTED",
+    "timestamp": "2026-10-10T11:57:49.472089+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 24,
+    "event_id": "ev_db0b210f79014abc",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED",
+    "timestamp": "2026-10-10T11:57:56.579443+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 1512,
+      "output_tokens": 1357,
+      "model_requests": 1,
+      "cost_usd": 0.002082,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 25,
+    "event_id": "ev_5942b74576b04b57",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED_STARTED",
+    "timestamp": "2026-10-10T11:57:56.580188+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 26,
+    "event_id": "ev_71df3c3e4b05469d",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED",
+    "timestamp": "2026-10-10T11:58:01.708164+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 1525,
+      "output_tokens": 1288,
+      "model_requests": 1,
+      "cost_usd": 0.0020031,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 27,
+    "event_id": "ev_8ae2f186f95948e7",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED_STARTED",
+    "timestamp": "2026-10-10T11:58:01.708983+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 28,
+    "event_id": "ev_758f5b4f2b1d4312",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED",
+    "timestamp": "2026-10-10T11:58:08.739186+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 2079,
+      "output_tokens": 1726,
+      "model_requests": 1,
+      "cost_usd": 0.0026948999999999996,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 29,
+    "event_id": "ev_c483cfcd30e1430c",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED_STARTED",
+    "timestamp": "2026-10-10T11:58:08.740197+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 30,
+    "event_id": "ev_17a2918e60094c85",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED",
+    "timestamp": "2026-10-10T11:58:14.403646+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 1529,
+      "output_tokens": 1451,
+      "model_requests": 1,
+      "cost_usd": 0.0021999000000000003,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 31,
+    "event_id": "ev_a9b7a3dcbcd7402d",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "REPOSITORY_DOCUMENTS_STARTED",
+    "timestamp": "2026-10-10T11:58:14.412858+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 32,
+    "event_id": "ev_3d66c3f8650e4535",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "REPOSITORY_DOCUMENTS",
+    "timestamp": "2026-10-10T11:58:19.333886+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "read_cost": 0.0,
+      "http_requests": 6,
+      "license_claim": "MIT",
+      "notes": [],
+      "content_length": 22076
+    },
+    "tool": null
+  },
+  {
+    "cursor": 33,
+    "event_id": "ev_e01986c93bbb418a",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "REPOSITORY_DOCUMENTS_STARTED",
+    "timestamp": "2026-10-10T11:58:19.335227+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 34,
+    "event_id": "ev_c8e10c1cf03d425f",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "REPOSITORY_DOCUMENTS",
+    "timestamp": "2026-10-10T11:58:24.197531+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "read_cost": 0.0,
+      "http_requests": 6,
+      "license_claim": "MIT",
+      "notes": [],
+      "content_length": 22076
+    },
+    "tool": null
+  },
+  {
+    "cursor": 35,
+    "event_id": "ev_cbd7595bddca4549",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED_STARTED",
+    "timestamp": "2026-10-10T11:58:24.200883+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 36,
+    "event_id": "ev_8e3f10a43c5c48db",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED",
+    "timestamp": "2026-10-10T11:58:32.946905+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 4357,
+      "output_tokens": 2032,
+      "model_requests": 1,
+      "cost_usd": 0.0037455,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 37,
+    "event_id": "ev_f2bc9d5ac8954493",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED_STARTED",
+    "timestamp": "2026-10-10T11:58:32.947723+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 38,
+    "event_id": "ev_666401e0791a4cd9",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED",
+    "timestamp": "2026-10-10T11:58:40.958551+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 4370,
+      "output_tokens": 1979,
+      "model_requests": 1,
+      "cost_usd": 0.0036858,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 39,
+    "event_id": "ev_43454ae8346c4ee2",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "SEARCH_PLANNED_STARTED",
+    "timestamp": "2026-10-10T11:58:40.967238+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 40,
+    "event_id": "ev_e911669029f14114",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "SEARCH_PLANNED",
+    "timestamp": "2026-10-10T11:58:42.783734+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 3620,
+      "output_tokens": 159,
+      "model_requests": 1,
+      "cost_usd": 0.0012768,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 41,
+    "event_id": "ev_84530956393a4156",
+    "revision": 1,
+    "event_type": "SEARCH",
+    "status": "SEARCHED_STARTED",
+    "timestamp": "2026-10-10T11:58:42.784351+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 42,
+    "event_id": "ev_6edd010aa4054246",
+    "revision": 1,
+    "event_type": "SEARCH",
+    "status": "SEARCHED",
+    "timestamp": "2026-10-10T11:58:53.566908+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "cost_dollars": 0.007,
+      "query": "builderz-labs mission-control GitHub repository MIT license agent status dashboard task list responsive",
+      "num": 4,
+      "rejected_urls": 0,
+      "request_id": "673352632871f690c1abdd1d249bb79a"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 43,
+    "event_id": "ev_62e98c73b03f485a",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ_STARTED",
+    "timestamp": "2026-10-10T11:58:53.569541+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 44,
+    "event_id": "ev_c1efcab06aad4933",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ",
+    "timestamp": "2026-10-10T11:58:57.401957+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "read_cost": 0.001,
+      "content_length": 11798,
+      "request_id": "93d0ecbb489dfe2704820dbfad4ef5c2"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 45,
+    "event_id": "ev_3e76ce4e35c2467b",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED_STARTED",
+    "timestamp": "2026-10-10T11:58:57.404010+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 46,
+    "event_id": "ev_973029f430c64bce",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED",
+    "timestamp": "2026-10-10T11:59:03.476404+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 1513,
+      "output_tokens": 1364,
+      "model_requests": 1,
+      "cost_usd": 0.0020907,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 47,
+    "event_id": "ev_7def771452404a4c",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "SEARCH_PLANNED_STARTED",
+    "timestamp": "2026-10-10T11:59:03.480917+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 48,
+    "event_id": "ev_73f08608266f4083",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "SEARCH_PLANNED",
+    "timestamp": "2026-10-10T11:59:05.077782+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 3638,
+      "output_tokens": 153,
+      "model_requests": 1,
+      "cost_usd": 0.0012749999999999999,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 49,
+    "event_id": "ev_77a2cac0b377406c",
+    "revision": 1,
+    "event_type": "SEARCH",
+    "status": "SEARCHED_STARTED",
+    "timestamp": "2026-10-10T11:59:05.078448+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 50,
+    "event_id": "ev_216e8419f6ec4047",
+    "revision": 1,
+    "event_type": "SEARCH",
+    "status": "SEARCHED",
+    "timestamp": "2026-10-10T11:59:12.611304+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "cost_dollars": 0.007,
+      "query": "open source agent mission control dashboard MIT license responsive task list status monitoring self-hosted",
+      "num": 4,
+      "rejected_urls": 0,
+      "request_id": "3f25384ac0d6f8ae4c5951678a7b5c0d"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 51,
+    "event_id": "ev_a913439a491e4522",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ_STARTED",
+    "timestamp": "2026-10-10T11:59:12.614768+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 52,
+    "event_id": "ev_febc722aac1d48b8",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ",
+    "timestamp": "2026-10-10T11:59:16.497794+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "read_cost": 0.001,
+      "content_length": 12000,
+      "request_id": "21a85b1fbde4fe5204716330d755f7c0"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 53,
+    "event_id": "ev_20cdf4c27bd94f92",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ_STARTED",
+    "timestamp": "2026-10-10T11:59:16.498648+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 54,
+    "event_id": "ev_e95276a5235a464c",
+    "revision": 1,
+    "event_type": "INSPECT",
+    "status": "SOURCE_READ",
+    "timestamp": "2026-10-10T11:59:20.334791+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "read_cost": 0.001,
+      "content_length": 2117,
+      "request_id": "aa20dcae1d4b9e57e9e400bd1e49f3d5"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 55,
+    "event_id": "ev_55752912b528422b",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED_STARTED",
+    "timestamp": "2026-10-10T11:59:20.338092+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 56,
+    "event_id": "ev_eac1f8120746439d",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED",
+    "timestamp": "2026-10-10T11:59:26.478470+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 1515,
+      "output_tokens": 1350,
+      "model_requests": 1,
+      "cost_usd": 0.0020745,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 57,
+    "event_id": "ev_f0d36f0f573849e6",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED_STARTED",
+    "timestamp": "2026-10-10T11:59:26.479279+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 58,
+    "event_id": "ev_3042b8f59bcc42ea",
+    "revision": 1,
+    "event_type": "REASON",
+    "status": "MATCHED",
+    "timestamp": "2026-10-10T11:59:32.322245+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 1972,
+      "output_tokens": 1553,
+      "model_requests": 1,
+      "cost_usd": 0.0024552,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 59,
+    "event_id": "ev_76aad8139cc7418f",
+    "revision": 1,
+    "event_type": "PROPOSE",
+    "status": "PROPOSED_STARTED",
+    "timestamp": "2026-10-10T11:59:32.327616+00:00",
+    "related": [],
+    "error": null,
+    "usage": {},
+    "tool": null
+  },
+  {
+    "cursor": 60,
+    "event_id": "ev_251bc7b6e1664a31",
+    "revision": 1,
+    "event_type": "PROPOSE",
+    "status": "PROPOSED",
+    "timestamp": "2026-10-10T11:59:37.895765+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "input_tokens": 7923,
+      "output_tokens": 846,
+      "model_requests": 1,
+      "cost_usd": 0.0033921,
+      "cost_basis": "conservative peak token rates; provider invoice may be lower"
+    },
+    "tool": null
+  },
+  {
+    "cursor": 61,
+    "event_id": "ev_0c62cc12ea134bc5",
+    "revision": 1,
+    "event_type": "FINISH",
+    "status": "COMPLETED",
+    "timestamp": "2026-10-10T11:59:37.898377+00:00",
+    "related": [],
+    "error": null,
+    "usage": {
+      "actions": 29,
+      "tool_calls": 12,
+      "cost_usd": 0.065635,
+      "known_cost_usd": 0.065635,
+      "reserved_usd": 0.0,
+      "input_tokens": 44554,
+      "output_tokens": 20224,
+      "model_requests": 17,
+      "cost_unknown": false,
+      "elapsed_seconds": 159.51,
+      "stopped_reason": null
+    },
+    "tool": null
+  }
+]

@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 import httpx
 from .budget import BudgetConfig, BudgetExhausted, BudgetGuard
+from .goal_review import GoalReview, normalized, review_context
 from .llm_adapter import LLMAdapter, ResourceMatch
 from .models import (
     Assessment, AssessmentStatus, Capability, Condition, Dimension, DiscoveryStatus, Evidence,
@@ -13,6 +14,7 @@ from .models import (
 )
 from .repository import Repository
 from .search_adapter import SearchAdapter
+from .source_research import github_repository, related_document_links, focused_excerpt, source_identity, locate_quote
 from .security import redact_secrets
 from .validators import (ValidationError, validate_transition, validate_references,
     validate_assessment_status, validate_evidence_sources, validate_conflict_handling,
@@ -59,13 +61,104 @@ class Controller:
             rev = self.repo.new_revision(job_id)
             self.repo.add_constraint(job_id, constraint.strip())
             # Reuse fetched sources, never carry forward their old applicability judgments.
-            self.repo.save_checkpoint(job_id, rev, {
-                'stage': 'define', 'resource_ids': [r['id'] for r in previous['resources']],
+            self.repo.save_checkpoint(job_id, rev, {'stage': 'define', **self._reused_sources(previous)})
+        return await self._schedule_run(job_id, rev, refine=True)
+
+    def _reused_sources(self, previous):
+        grouped = {}
+        for raw in previous['resources']:
+            resource = Resource.model_validate(raw)
+            key = source_identity(resource.canonical_source)
+            if key not in grouped: grouped[key] = resource
+            else:
+                owner = grouped[key]
+                owner.source_references = list(dict.fromkeys(owner.source_references + resource.source_references))
+                claims = {owner.license_claim, resource.license_claim} - {None, 'UNKNOWN'}
+                if len(claims) > 1: owner.license_claim = 'UNKNOWN'
+        for resource in grouped.values(): self.repo.save_resource(resource)
+        ids = [r.id for r in grouped.values()]
+        return {'resource_ids': ids, 'inspected_ids': ids, 'reused_sources': bool(ids),
                 'evidence_ids': [e['id'] for e in previous['evidence']],
-                'fetched_urls': [e['source_ref'] for e in previous['evidence']],
-                'inspected_ids': [r['id'] for r in previous['resources']],
-                'reused_sources': bool(previous['resources']),
+                'fetched_urls': [e['source_ref'] for e in previous['evidence']]}
+
+    async def review_goal(self, job_id: str, review: GoalReview) -> bool:
+        """Apply a whole review atomically, then research its new revision."""
+        with self.repo.transaction():
+            job = self.repo.get_job(job_id)
+            if (not job or job.status != JobStatus.COMPLETED or job.active_run_id
+                    or job.current_revision != review.expected_revision): return False
+            previous = self.repo.current_view(job_id)
+            old_conditions = {c['id']: Condition.model_validate(c) for c in previous['conditions']}
+            old_goal = self.repo.get_goal(job_id)
+            if not old_goal: raise ValueError('目标尚未定义')
+            if any(e.condition_id not in old_conditions for e in review.conditions):
+                raise ValueError('条件不属于当前任务修订')
+            if any(e.index >= len(old_goal.assumptions) for e in review.assumptions):
+                raise ValueError('假设不属于当前目标')
+            removed = {e.condition_id for e in review.conditions if e.action == 'remove'}
+            if not set(old_conditions) - removed: raise ValueError('至少保留一项成立条件')
+            if any(set(rel.get('target_ids', [])) & removed for c in old_conditions.values()
+                   if c.id not in removed for rel in c.relations):
+                raise ValueError('其他条件依赖待移除的条件；请先调整依赖条件')
+            rev = self.repo.new_revision(job_id)
+            goal = self.repo.get_goal(job_id)
+            if review.purpose is not None:
+                goal.purpose = review.purpose
+                goal.constraints = [c for c in goal.constraints if not (
+                    c.get('text', '').startswith('目标理解：') and c.get('provenance') == 'USER_CONFIRMED')]
+                goal.constraints.append({'text': '目标理解：' + review.purpose, 'provenance': 'USER_CONFIRMED'})
+            edits = {e.condition_id: e for e in review.conditions}
+            new_ids = {cid: new_id('cond') for cid in old_conditions if cid not in removed}
+            for old in old_conditions.values():
+                edit = edits.get(old.id)
+                if edit:
+                    original = next((d['original_statement'] for d in goal.condition_decisions
+                                     if normalized(d.get('statement', '')) == normalized(old.statement)), old.statement)
+                    goal.condition_decisions = [d for d in goal.condition_decisions
+                                                if normalized(d['original_statement']) != normalized(original)]
+                    goal.condition_decisions.append({
+                        'condition_id': old.id, 'original_statement': original,
+                        'statement': edit.statement or old.statement, 'action': edit.action,
+                        'obligation': (edit.obligation or old.obligation).value,
+                        'dimension': (edit.dimension or old.dimension).value,
+                        'verification_method': edit.verification_method if edit.verification_method is not None else old.verification_method,
+                        'revision': rev, 'provenance': 'USER_CONFIRMED',
+                    })
+                if old.id in removed: continue
+                c = old.model_copy(deep=True)
+                c.id, c.revision_created = new_ids[old.id], rev
+                c.relations = [{**rel, 'target_ids': [new_ids[t] for t in rel['target_ids']]} for rel in c.relations]
+                c.validity_status = ValidityStatus.ACTIVE
+                c.created_at = c.updated_at = datetime.now(timezone.utc)
+                if edit:
+                    c.statement = edit.statement or c.statement
+                    c.obligation = edit.obligation or c.obligation
+                    c.dimension = edit.dimension or c.dimension
+                    if edit.verification_method is not None: c.verification_method = edit.verification_method.strip()
+                    c.provenance = Provenance.USER_CONFIRMED
+                    c.origin = f'用户确认于修订 {rev}；原条件 {old.id}'
+                self.repo.save_condition(c)
+            assumption_edits = {e.index: e.action for e in review.assumptions}
+            retained = []
+            for index, a in enumerate(goal.assumptions):
+                if index not in assumption_edits:
+                    retained.append(a)
+                    continue
+                action = assumption_edits[index]
+                goal.assumption_decisions = [d for d in goal.assumption_decisions if normalized(d['text']) != normalized(a['text'])]
+                goal.assumption_decisions.append({'text': a['text'], 'action': action,
+                                                 'provenance': 'USER_CONFIRMED', 'revision': rev})
+                if action == 'confirm': goal.constraints.append({'text': a['text'], 'provenance': 'USER_CONFIRMED'})
+            goal.assumptions = retained
+            goal.requirements = [{'text': job.original_request, 'provenance': 'USER_STATED'}] + [
+                {'text': d['statement'], 'provenance': 'USER_CONFIRMED'} for d in goal.condition_decisions if d['action'] != 'remove']
+            self.repo.save_goal(goal)
+            self.repo.save_checkpoint(job_id, rev, {
+                'stage': 'challenge', 'defined': True, 'ambiguity_checked': True,
+                **self._reused_sources(previous),
             })
+            self.repo.append_event(self._ev(job_id, rev, 'REVISE', 'USER_REVIEWED',
+                refs=[e.condition_id for e in review.conditions], usage={'review': review.model_dump(mode='json')}))
         return await self._schedule_run(job_id, rev, refine=True)
 
     async def answer_input(self, job_id, answer):
@@ -196,6 +289,26 @@ class Controller:
             cs = [c for c in self.repo.list_capabilities(job_id) if c.resource_id in state['resource_ids']]
             return rs, es, cs
 
+        def save_deep_document(resource, doc):
+            # Called inside an owned transaction. A read receipt is CONTEXT;
+            # assess_resources must still produce a validated, exact quotation.
+            e = Evidence(id=new_id('evidence'), job_id=job_id, claim='主要候选文档：' + resource.name,
+                source_type=SourceType.SOURCE_CODE if doc.collection_method == 'github public API' else SourceType.OFFICIAL_DOC,
+                source_ref=doc.url, locator='深度文档：' + (doc.category or doc.title),
+                excerpt_or_summary=doc.text[:12000], source_version=doc.version,
+                collection_method=doc.collection_method or 'exa /contents', stance=EvidenceStance.CONTEXT)
+            self.repo.save_evidence(e)
+            state['evidence_ids'].append(e.id)
+            if doc.url not in state['fetched_urls']: state['fetched_urls'].append(doc.url)
+            if doc.url not in resource.source_references: resource.source_references.append(doc.url)
+            self.repo.save_resource(resource)
+            review = state.setdefault('source_reviews', {}).setdefault(resource.id, {'documents': [], 'notes': []})
+            review['documents'] = [d for d in review['documents'] if d['url'] != doc.url]
+            review['documents'].append({'url': doc.url, 'category': doc.category or doc.title, 'version': doc.version})
+            review['status'] = 'READ'
+            state['matched_resource_ids'] = [rid for rid in state.get('matched_resource_ids', []) if rid != resource.id]
+            state.setdefault('pending_matches', {}).pop(resource.id, None)
+
         def settle(status, reason=None):
             usage = guard.usage.snapshot()
             if self.repo.finish_run(job_id, run_id, revision, status, usage, reason):
@@ -208,13 +321,16 @@ class Controller:
             if isinstance(self.search, SearchAdapter): self.search.validate_config()
             goal = self.repo.get_goal(job_id)
             goal_text = job.original_request
+            statement_text = goal_text
             if goal:
                 additions = [c['text'] for c in goal.constraints if isinstance(c, dict)
                              and c.get('text') and c['text'] != job.original_request]
                 if additions: goal_text += '\n用户补充：' + '\n'.join(additions)
+                statement_text = goal_text
+                goal_text += '\n明确的用户复核决定（优先于原推导）：\n' + review_context(goal)
                 # A model's definition cannot smuggle an unresearched feasibility
                 # judgment, reuse percentage or candidate recommendation into the goal.
-                goal.statement = goal_text
+                goal.statement = statement_text
                 self.repo.save_goal(goal)
             while True:
                 if not self.repo.owns_run(job_id, run_id, revision): raise asyncio.CancelledError()
@@ -240,23 +356,38 @@ class Controller:
                             return
                         checkpoint()
                     definition = await external('REASON', 'DEFINED', self.llm.define_goal, goal_text)
-                    goal.statement, goal.purpose = goal_text, definition.purpose
+                    goal.statement = statement_text
+                    if not any(c['text'].startswith('目标理解：') and c['provenance'] == 'USER_CONFIRMED' for c in goal.constraints):
+                        goal.purpose = definition.purpose
                     goal.requirements = [{'text': job.original_request, 'provenance': 'USER_STATED'}]
-                    goal.assumptions = [{'text': s, 'provenance': 'SYSTEM_ASSUMED'} for s in definition.assumptions]
+                    goal.requirements += [{'text': d['statement'], 'provenance': 'USER_CONFIRMED'}
+                                          for d in goal.condition_decisions if d['action'] != 'remove']
+                    reviewed_assumptions = {normalized(d['text']) for d in goal.assumption_decisions}
+                    goal.assumptions = [{'text': s, 'provenance': 'SYSTEM_ASSUMED'}
+                                        for s in definition.assumptions if normalized(s) not in reviewed_assumptions]
                     goal.open_questions = definition.open_questions
                     self.repo.save_goal(goal)
                     state['defined'] = True
                     checkpoint('derive')
                 elif stage == 'derive':
                     specs = await external('REASON', 'DERIVED', self.llm.derive_conditions, goal_text)
-                    if not specs: raise ValueError('模型没有返回可用于研究的条件')
+                    if not specs and not any(d['action'] != 'remove' for d in goal.condition_decisions):
+                        raise ValueError('模型没有返回可用于研究的条件')
+                    reviewed_texts = {normalized(d[k]) for d in goal.condition_decisions for k in ('original_statement', 'statement')}
                     with self.repo.transaction():
                         for sp in specs:
+                            if normalized(sp.statement) in reviewed_texts: continue
                             self.repo.save_condition(Condition(id=new_id('cond'), job_id=job_id,
                                 statement=sp.statement, obligation=Obligation(sp.obligation),
                                 dimension=Dimension(sp.dimension), origin='model-derived: ' + sp.rationale,
                                 scope=goal_text, verification_method=sp.verification_method or '待核查具体验收条件',
                                 revision_created=revision))
+                        for d in goal.condition_decisions:
+                            if d['action'] == 'remove': continue
+                            self.repo.save_condition(Condition(id=new_id('cond'), job_id=job_id,
+                                statement=d['statement'], obligation=d['obligation'], dimension=d['dimension'],
+                                verification_method=d.get('verification_method'), provenance=Provenance.USER_CONFIRMED,
+                                origin='用户已确认：' + d['condition_id'], scope=goal_text, revision_created=revision))
                         checkpoint('challenge')
                 elif stage == 'challenge':
                     conditions = current_conditions()
@@ -267,11 +398,17 @@ class Controller:
                         for finding in report.findings:
                             target = by_statement.get(finding.target_condition)
                             rec = finding.recommendation.lower()
+                            if target and target.provenance == Provenance.USER_CONFIRMED:
+                                if rec != 'keep': state['delivery_notes'].append('已确认条件保持不变；复核建议：' + finding.finding)
+                                continue
+                            if normalized(finding.replacement or finding.finding) in {
+                                normalized(d[k]) for d in goal.condition_decisions for k in ('original_statement', 'statement')
+                            }: continue
                             if rec == 'add_condition':
                                 statement = finding.replacement or finding.finding
                                 if statement not in by_statement:
                                     c = Condition(id=new_id('cond'), job_id=job_id, statement=statement,
-                                        obligation=Obligation.REQUIRED, dimension=Dimension(finding.dimension),
+                                        obligation=Obligation(finding.obligation), dimension=Dimension(finding.dimension),
                                         origin='challenge: ' + finding.finding, scope=goal_text,
                                         verification_method='需要来源或限定环境的实际验收', revision_created=revision)
                                     self.repo.save_condition(c)
@@ -304,13 +441,31 @@ class Controller:
                 elif stage == 'search':
                     results, meta = await external('SEARCH', 'SEARCHED', self.search.search,
                         state['pending_query'], 4, tool=True, reserve=getattr(self.search, 'search_reservation', 0.05))
-                    known_urls = {r.canonical_source for r in source_objects()[0]}
+                    known_resources = {source_identity(r.canonical_source): r for r in source_objects()[0]}
                     added = 0
+                    added_sources = 0
                     with self.repo.transaction():
                         if meta.get('rejected_urls'):
                             state['delivery_notes'].append(f"本次检索有 {meta['rejected_urls']} 个来源未通过公共 URL 安全校验，未用于判断。")
                         for hit in results:
-                            if hit.url in known_urls: continue
+                            key = source_identity(hit.url)
+                            existing = known_resources.get(key)
+                            if existing:
+                                if hit.url in existing.source_references or not hit.text: continue
+                                existing.source_references.append(hit.url)
+                                self.repo.save_resource(existing)
+                                e = Evidence(id=new_id('evidence'), job_id=job_id,
+                                    claim='同一候选的补充检索来源：' + existing.name, source_type=SourceType.THIRD_PARTY,
+                                    source_ref=hit.url, locator='Exa /search contents.text',
+                                    excerpt_or_summary=hit.text[:12000], collection_method='exa /search',
+                                    stance=EvidenceStance.CONTEXT, source_version=hit.version)
+                                self.repo.save_evidence(e)
+                                state['evidence_ids'].append(e.id)
+                                state['fetched_urls'].append(hit.url)
+                                state['matched_resource_ids'] = [rid for rid in state.get('matched_resource_ids', []) if rid != existing.id]
+                                state.setdefault('pending_matches', {}).pop(existing.id, None)
+                                added_sources += 1
+                                continue
                             if len(state['resource_ids']) >= 8:
                                 if '候选目录限制为 8 个资源；未调查的候选不作结论。' not in state['delivery_notes']:
                                     state['delivery_notes'].append('候选目录限制为 8 个资源；未调查的候选不作结论。')
@@ -331,12 +486,12 @@ class Controller:
                                 self.repo.save_evidence(evidence)
                                 state['evidence_ids'].append(evidence.id)
                                 state['fetched_urls'].append(hit.url)
-                            known_urls.add(hit.url)
+                            known_resources[key] = resource
                             added += 1
                         state['queries'].append(state['pending_query'])
                         state['rounds'] = state.get('rounds', 0) + 1
-                        state['no_novelty'] = 0 if added else state.get('no_novelty', 0) + 1
-                        checkpoint('decide' if not added and state.get('matched') else 'inspect')
+                        state['no_novelty'] = 0 if added or added_sources else state.get('no_novelty', 0) + 1
+                        checkpoint(('match' if added_sources else 'decide') if not added and state.get('matched') else 'inspect')
                 elif stage == 'inspect':
                     resources, evidence, _ = source_objects()
                     pending = [r for r in resources if r.id not in state['inspected_ids']]
@@ -393,11 +548,16 @@ class Controller:
                     for r in fresh:
                         es = [e for e in evidence if e.source_ref in r.source_references
                               and e.stance == EvidenceStance.CONTEXT]
-                        es.sort(key=lambda e: len(e.excerpt_or_summary), reverse=True)
+                        latest = {}
+                        for e in sorted(es, key=lambda e: e.retrieved_at): latest[e.source_ref] = e
+                        es = list(latest.values())
+                        es.sort(key=lambda e: (e.locator.startswith('深度文档：'), len(e.excerpt_or_summary)), reverse=True)
                         payload.append({'resource_id': r.id, 'name': r.name, 'url': r.canonical_source,
                             'license': r.license_claim, 'sources': [{'evidence_id': e.id,
-                            'text': e.excerpt_or_summary[:2400]} for e in es[:2]]})
+                            'url': e.source_ref, 'category': e.locator,
+                            'text': focused_excerpt(e.excerpt_or_summary)} for e in es[:6]]})
                     matches = []
+                    provided_by_resource = {item['resource_id']: [source_map[s['evidence_id']] for s in item['sources']] for item in payload}
                     pending_matches = state.setdefault('pending_matches', {})
                     for item in payload:
                         rid = item['resource_id']
@@ -430,14 +590,15 @@ class Controller:
                         es = [source_map[eid] for eid in m.evidence_ids if eid in source_map
                               and source_map[eid].source_ref in by_res[m.resource_id].source_references]
                         quote = m.supporting_quote.strip()
-                        located = next((e for e in es if quote and quote in e.excerpt_or_summary), None)
+                        available = provided_by_resource.get(m.resource_id, [])
+                        located, quote = locate_quote(quote, es, available)
                         ids = []
                         gaps = list(m.gaps)
                         if status == AssessmentStatus.CONFLICTED:
                             refuting = [source_map[eid] for eid in m.refuting_evidence_ids if eid in source_map
                                 and source_map[eid].source_ref in by_res[m.resource_id].source_references]
                             refute_quote = m.refuting_quote.strip()
-                            refute_source = next((e for e in refuting if refute_quote and refute_quote in e.excerpt_or_summary), None)
+                            refute_source, refute_quote = locate_quote(refute_quote, refuting, available)
                             if located and refute_source and quote != refute_quote:
                                 for src, excerpt, stance in ((located, quote, EvidenceStance.SUPPORTS),
                                         (refute_source, refute_quote, EvidenceStance.REFUTES)):
@@ -463,6 +624,9 @@ class Controller:
                                 claim_evidence.append(e)
                                 ids = [e.id]
                         condition_text = by_cond[m.condition_id].statement.lower()
+                        if status == AssessmentStatus.SUPPORTED and any(word in condition_text for word in ('commercial', '商用')) and located and located.locator == '深度文档：仓库与许可声明':
+                            status = AssessmentStatus.PARTIAL
+                            gaps.append('许可元数据只说明许可标识；商用适用性还需核对许可原文与使用范围')
                         if status in (AssessmentStatus.SUPPORTED, AssessmentStatus.PARTIAL, AssessmentStatus.NOT_SATISFIED) and any(word in condition_text for word in ('license', 'commercial', '商用', '许可', '开源')) and by_res[m.resource_id].license_claim == 'UNKNOWN':
                             status = AssessmentStatus.UNKNOWN
                             gaps.append('未确认资源许可；不能据此认定可商用或符合开源约束')
@@ -509,7 +673,78 @@ class Controller:
                         state.pop('pending_matches', None)
                         state['matched'] = True
                         checkpoint('decide')
+                elif stage == 'deep_inspect':
+                    resources, evidence, _ = source_objects()
+                    completed = state.setdefault('deep_inspected_ids', [])
+                    targets = state['deep_targets']
+                    for rid in targets:
+                        if rid in completed: continue
+                        resource = next(r for r in resources if r.id == rid)
+                        if github_repository(resource.canonical_source) and hasattr(self.search, 'read_repository'):
+                            try:
+                                docs, meta = await external('INSPECT', 'REPOSITORY_DOCUMENTS',
+                                    self.search.read_repository, resource.canonical_source, tool=True, reserve=0.0)
+                            except (BudgetExhausted, PauseRequested, asyncio.CancelledError): raise
+                            except Exception as exc:
+                                docs, meta = [], {'notes': ['仓库文档读取失败：' + type(exc).__name__]}
+                            for note in meta.get('notes', []): state['delivery_notes'].append(resource.name + '：' + note)
+                            claim = meta.get('license_claim', 'UNKNOWN')
+                            if docs and claim != 'UNKNOWN': resource.license_claim = claim
+                        else:
+                            urls = related_document_links(resource.canonical_source,
+                                [e.excerpt_or_summary for e in evidence if e.source_ref in resource.source_references])
+                            docs = []
+                            for url in urls:
+                                if url in resource.source_references: continue
+                                try:
+                                    doc, _ = await external('INSPECT', 'LINKED_DOCUMENT', self.search.read_source,
+                                        url, tool=True, reserve=getattr(self.search, 'read_reservation', 0.02))
+                                    doc.category = '许可、接口或部署文档'
+                                    docs.append(doc)
+                                    # Commit each paid read before attempting another one.
+                                    with self.repo.transaction():
+                                        save_deep_document(resource, doc)
+                                        checkpoint()
+                                except (BudgetExhausted, PauseRequested, asyncio.CancelledError): raise
+                                except Exception as exc:
+                                    state['delivery_notes'].append(resource.name + ' 关联文档读取失败：' + type(exc).__name__)
+                        with self.repo.transaction():
+                            if github_repository(resource.canonical_source):
+                                for doc in docs: save_deep_document(resource, doc)
+                            self.repo.save_resource(resource)
+                            completed.append(rid)
+                            review = state.setdefault('source_reviews', {}).setdefault(rid, {'documents': [], 'notes': []})
+                            review['status'] = 'READ' if review['documents'] else 'UNAVAILABLE'
+                            review['notes'] = meta.get('notes', []) if github_repository(resource.canonical_source) else []
+                            if docs:
+                                state['matched_resource_ids'] = [id for id in state.get('matched_resource_ids', []) if id != rid]
+                                state.setdefault('pending_matches', {}).pop(rid, None)
+                            else: state['delivery_notes'].append(resource.name + '：未获得额外文档，相关问题仍待核查。')
+                            checkpoint()
+                    checkpoint('match')
                 elif stage == 'decide':
+                    resources, evidence, _ = source_objects()
+                    if not state.get('deep_targets'):
+                        assessments = self.repo.current_view(job_id)['assessments']
+                        def rank(r):
+                            scores = {'SUPPORTED': 3, 'VERIFIED': 3, 'PARTIAL': 1}
+                            return sum(scores.get(a['status'], 0) for a in assessments if r.id in a['resource_ids'])
+                        candidates = [r for r in resources if (
+                            (github_repository(r.canonical_source) and hasattr(self.search, 'read_repository'))
+                            or related_document_links(r.canonical_source, [e.excerpt_or_summary for e in evidence if e.source_ref in r.source_references]))]
+                        candidates.sort(key=rank, reverse=True)
+                        seen_sources = set()
+                        unique = []
+                        for r in candidates:
+                            key = source_identity(r.canonical_source)
+                            if key in seen_sources: continue
+                            seen_sources.add(key)
+                            unique.append(r)
+                        candidates = unique
+                        if candidates:
+                            state['deep_targets'] = [r.id for r in candidates[:2]]
+                            checkpoint('deep_inspect')
+                            continue
                     # Unknown coverage, no candidates and license/integration gaps direct subsequent searches.
                     more = bool(state.get('gaps')) and state.get('rounds', 0) < config.max_search_rounds
                     if state.get('no_novelty', 0) >= 2: more = False
@@ -525,7 +760,8 @@ class Controller:
                         checkpoint('finish')
                         continue
                     draft = await external('PROPOSE', 'PROPOSED', self.llm.draft_proposal,
-                        goal_text, view['resources'], view['assessments'])
+                        goal_text, [{**r, 'read_documents': state.get('source_reviews', {}).get(r['id'], {}).get('documents', [])}
+                                    for r in view['resources']], view['assessments'])
                     resources, evidence, capabilities = source_objects()
                     assessments = [Assessment.model_validate(a) for a in view['assessments']]
                     selected = set(draft.resource_ids)
@@ -545,6 +781,8 @@ class Controller:
                         costs={'estimate': 'UNKNOWN', 'basis': '没有经核实的方案实施价格'},
                         recommendation_reason=draft.recommendation_reason,
                         validity_status=ProposalValidity.READY_FOR_REVIEW, revision_created=revision)
+                    if not selected <= set(state.get('deep_inspected_ids', [])):
+                        proposal.risks.append('部分所选资源没有补充文档读取；许可、接口、部署和依赖缺口需人工核查。')
                     problems = validate_references(job_id=job_id, conditions=conditions, resources=resources,
                         capabilities=capabilities, evidence=evidence, assessments=assessments, proposals=[proposal])
                     # UNKNOWN can be traceable to the explicit absence of sufficient evidence.

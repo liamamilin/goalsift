@@ -1,0 +1,11 @@
+{
+  "prior_authorized_spend": 0.3987574,
+  "r1_conservative_cost": 0.065635,
+  "r2_conservative_cost": 0.0567802,
+  "github_cost": 0,
+  "new_total": 0.1224152,
+  "cumulative_total": 0.5211726,
+  "authorization": 1,
+  "remaining": 0.4788274,
+  "cost_basis": "conservative model peak rates plus Exa response costDollars, no outstanding reservations"
+}

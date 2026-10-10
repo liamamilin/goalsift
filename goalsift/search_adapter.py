@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 import httpx
 from .config import load_env
 from .security import redact_secrets
+from .source_research import github_repository, document_category
 load_env()
 EXA_SEARCH = 'https://api.exa.ai/search'
 EXA_CONTENTS = 'https://api.exa.ai/contents'
@@ -23,6 +24,8 @@ class SearchResult:
     retrieved_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     cost_dollars: float | None = None
     version: str | None = None
+    category: str | None = None
+    collection_method: str | None = None
 
 class SearchAdapter:
     # Reserve a conservative ceiling before each request; actual costs come from costDollars.
@@ -121,3 +124,80 @@ class SearchAdapter:
         return SearchResult(url=final_url, title=redact_secrets(item.get('title', '')),
             text=text, cost_dollars=cost, version=item.get('publishedDate')), {
                 'read_cost': cost, 'content_length': len(text), 'request_id': data.get('requestId')}
+
+    async def read_repository(self, url: str) -> tuple[list[SearchResult], dict[str, Any]]:
+        """Read up to four actual root files, through GitHub's public API.
+
+        No cloning, installation, authentication or execution. At most six
+        requests; API-returned paths must stay under the exact repository.
+        Branch names and file URLs come from the response, never guessed.
+        """
+        import base64
+        import json
+        from urllib.parse import quote
+        parts = github_repository(url)
+        if not parts: raise ValueError('不是公共 GitHub 仓库地址')
+        owner, repo = parts
+        api = f'https://api.github.com/repos/{owner}/{repo}'
+        # Like the fixed Exa endpoint, this is a tool backend, not a
+        # user-controlled fetch destination. Never request response-provided
+        # download URLs; TLS verification and redirects remain unchanged.
+        docs, notes = [], []
+        request_count = 0
+        async with httpx.AsyncClient(timeout=min(self._timeout, 10), follow_redirects=False,
+                headers={'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28',
+                         'User-Agent': 'GoalSift-source-research'}) as client:
+            async def get(target):
+                nonlocal request_count
+                request_count += 1
+                async with client.stream('GET', target) as response:
+                    response.raise_for_status()
+                    data = bytearray()
+                    async for chunk in response.aiter_bytes():
+                        data.extend(chunk)
+                        if len(data) > 700_000: raise ValueError('GitHub 来源超过读取大小限制')
+                return json.loads(data)
+            metadata = await get(api)
+            branch = metadata.get('default_branch')
+            license_id = (metadata.get('license') or {}).get('spdx_id')
+            if license_id in (None, 'NOASSERTION', 'OTHER'): license_id = 'UNKNOWN'
+            # Metadata is a source receipt, not a finding of legal compatibility.
+            excerpt = json.dumps({'full_name': metadata.get('full_name'), 'default_branch': branch,
+                'license': metadata.get('license'), 'archived': metadata.get('archived')}, ensure_ascii=False)
+            docs.append(SearchResult(url=api, title=f'{owner}/{repo} 仓库元数据', text=excerpt,
+                version=branch, category='仓库与许可声明', collection_method='github public API'))
+            if not isinstance(branch, str) or not branch or len(branch) > 200:
+                raise ValueError('仓库未返回有效默认分支')
+            ref = '?ref=' + quote(branch, safe='')
+            entries = await get(api + '/contents' + ref)
+            if not isinstance(entries, list): raise ValueError('仓库根目录不可读取')
+            selected = {}
+            public_source = await self._public(f'https://github.com/{owner}/{repo}')
+            for item in entries[:1000]:
+                path = item.get('path', '')
+                if not isinstance(path, str) or '/' in path or not path or item.get('type') != 'file': continue
+                category = document_category(path)
+                if category and category not in selected and item.get('size', 0) <= 400_000:
+                    selected[category] = item
+            for category in ('许可原文', '接口与使用说明', '运行依赖', '部署配置'):
+                item = selected.get(category)
+                if not item: continue
+                path = item['path']
+                try:
+                    content = await get(api + '/contents/' + quote(path, safe='') + ref)
+                    if content.get('encoding') != 'base64' or content.get('type') != 'file':
+                        raise ValueError('不是可读取文本文件')
+                    text = base64.b64decode(content.get('content', '').replace('\n', ''), validate=True).decode('utf-8')
+                    source_url = content.get('html_url', '')
+                    if not public_source or github_repository(source_url) != parts:
+                        raise ValueError('文档来源不属于当前公共仓库')
+                    if text.strip(): docs.append(SearchResult(url=source_url, title=path,
+                        text=redact_secrets(text)[:12000], version=content.get('sha'),
+                        category=category, collection_method='github public API'))
+                except (httpx.HTTPError, ValueError, UnicodeDecodeError) as exc:
+                    notes.append(f'{path} 读取失败：{type(exc).__name__}')
+            missing = [category for category in ('许可原文', '接口与使用说明', '运行依赖', '部署配置') if category not in selected]
+            if missing: notes.append('未取得以下类别的可读根目录文件（缺失或超出读取限制），保持未核查：' + '、'.join(missing))
+        return docs, {'read_cost': 0.0, 'http_requests': request_count,
+                      'license_claim': license_id, 'notes': notes,
+                      'content_length': sum(len(d.text) for d in docs)}

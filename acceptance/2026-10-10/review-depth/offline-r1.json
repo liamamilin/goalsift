@@ -1,0 +1,453 @@
+{
+  "id": "job_23d6b6b0d2b14cfa",
+  "status": "COMPLETED",
+  "revision": 1,
+  "original_request": "[UI 隔离验证] 查看 Agent 运行状态，页面清晰可读。无需固定动画或帧率。",
+  "goal": {
+    "id": "goal_1dd2bc2cefef42cc",
+    "job_id": "job_23d6b6b0d2b14cfa",
+    "created_at": "2026-10-10T11:51:19.259518Z",
+    "updated_at": "2026-10-10T11:51:19.259518Z",
+    "statement": "[UI 隔离验证] 查看 Agent 运行状态，页面清晰可读。无需固定动画或帧率。",
+    "purpose": "查看 Agent 的运行状态与清晰的状态面板",
+    "requirements": [
+      {
+        "text": "[UI 隔离验证] 查看 Agent 运行状态，页面清晰可读。无需固定动画或帧率。",
+        "provenance": "USER_STATED"
+      }
+    ],
+    "constraints": [
+      {
+        "text": "[UI 隔离验证] 查看 Agent 运行状态，页面清晰可读。无需固定动画或帧率。",
+        "provenance": "USER_STATED"
+      }
+    ],
+    "assumptions": [
+      {
+        "text": "演示暂以单用户本地环境为前提",
+        "provenance": "SYSTEM_ASSUMED"
+      },
+      {
+        "text": "尚未在目标环境验收",
+        "provenance": "SYSTEM_ASSUMED"
+      }
+    ],
+    "open_questions": [],
+    "revision": 1,
+    "original_user_text": "[UI 隔离验证] 查看 Agent 运行状态，页面清晰可读。无需固定动画或帧率。",
+    "condition_decisions": [],
+    "assumption_decisions": []
+  },
+  "conditions": [
+    {
+      "id": "cond_af9c1c3fcc144056",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.260615Z",
+      "updated_at": "2026-10-10T11:51:19.260616Z",
+      "statement": "显示运行中的 Agent",
+      "obligation": "OPTIONAL",
+      "dimension": "FUNCTIONAL",
+      "origin": "model-derived: ; challenge: 模型尝试降级用户条件",
+      "provenance": "SYSTEM_ASSUMED",
+      "source_refs": [],
+      "scope": "[UI 隔离验证] 查看 Agent 运行状态，页面清晰可读。无需固定动画或帧率。",
+      "verification_method": "待核查具体验收条件",
+      "relations": [],
+      "validity_status": "ACTIVE",
+      "revision_created": 1
+    },
+    {
+      "id": "cond_bff185bd227d43df",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.260646Z",
+      "updated_at": "2026-10-10T11:51:19.260646Z",
+      "statement": "强制 120fps",
+      "obligation": "OPTIONAL",
+      "dimension": "FUNCTIONAL",
+      "origin": "model-derived: ; challenge: 模型尝试降级用户条件",
+      "provenance": "SYSTEM_ASSUMED",
+      "source_refs": [],
+      "scope": "[UI 隔离验证] 查看 Agent 运行状态，页面清晰可读。无需固定动画或帧率。",
+      "verification_method": "待核查具体验收条件",
+      "relations": [],
+      "validity_status": "ACTIVE",
+      "revision_created": 1
+    },
+    {
+      "id": "cond_af30dacbb3824b15",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.260664Z",
+      "updated_at": "2026-10-10T11:51:19.260664Z",
+      "statement": "附加动画",
+      "obligation": "OPTIONAL",
+      "dimension": "FUNCTIONAL",
+      "origin": "model-derived: ; challenge: 模型尝试降级用户条件",
+      "provenance": "SYSTEM_ASSUMED",
+      "source_refs": [],
+      "scope": "[UI 隔离验证] 查看 Agent 运行状态，页面清晰可读。无需固定动画或帧率。",
+      "verification_method": "待核查具体验收条件",
+      "relations": [],
+      "validity_status": "ACTIVE",
+      "revision_created": 1
+    }
+  ],
+  "resources": [
+    {
+      "id": "res_585f21404e8b4dbb",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.261838Z",
+      "updated_at": "2026-10-10T11:51:19.261838Z",
+      "name": "Dash",
+      "kind": "web_resource",
+      "description": "Shows running agents. No commercial license supplied.",
+      "canonical_source": "https://github.com/acme/dash",
+      "source_references": [
+        "https://github.com/acme/dash",
+        "https://github.com/acme/dash/blob/main/LICENSE"
+      ],
+      "version_or_revision": null,
+      "availability": null,
+      "license_claim": "MIT",
+      "environment": null,
+      "discovery_status": "CONFIRMED_EXISTENCE",
+      "discovered_at": "2026-10-10T11:51:19.261839Z"
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "cap_7e085d9774ca44d7",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.262929Z",
+      "updated_at": "2026-10-10T11:51:19.262929Z",
+      "resource_id": "res_585f21404e8b4dbb",
+      "statement": "Shows running agents. No commercial license supplied.",
+      "preconditions": [],
+      "interface_or_use": null,
+      "effects": [],
+      "limitations": [
+        "未经目标环境验收",
+        "许可和适用前提需逐项检查"
+      ],
+      "evidence_ids": [
+        "evidence_53c7f66a32164160",
+        "evidence_110a28359ad94aa7"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "evidence_53c7f66a32164160",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.261865Z",
+      "updated_at": "2026-10-10T11:51:19.261865Z",
+      "claim": "来源读取记录：Dash",
+      "source_type": "THIRD_PARTY",
+      "source_ref": "https://github.com/acme/dash",
+      "locator": "Exa /search contents.text",
+      "excerpt_or_summary": "Shows running agents",
+      "retrieved_at": "2026-10-10T11:51:19.261866Z",
+      "source_version": null,
+      "collection_method": "exa /search",
+      "stance": "CONTEXT",
+      "verification_method": null,
+      "test_context": null,
+      "observed_result": null
+    },
+    {
+      "id": "evidence_110a28359ad94aa7",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.262246Z",
+      "updated_at": "2026-10-10T11:51:19.262246Z",
+      "claim": "全文来源读取：Dash",
+      "source_type": "THIRD_PARTY",
+      "source_ref": "https://github.com/acme/dash",
+      "locator": "Exa /contents full source text",
+      "excerpt_or_summary": "Shows running agents. No commercial license supplied.",
+      "retrieved_at": "2026-10-10T11:51:19.262247Z",
+      "source_version": null,
+      "collection_method": "exa /contents",
+      "stance": "CONTEXT",
+      "verification_method": null,
+      "test_context": null,
+      "observed_result": null
+    },
+    {
+      "id": "evidence_053b0ab745bc4926",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.262940Z",
+      "updated_at": "2026-10-10T11:51:19.262940Z",
+      "claim": "来源声明可显示运行状态，尚未环境验收",
+      "source_type": "THIRD_PARTY",
+      "source_ref": "https://github.com/acme/dash",
+      "locator": "exact source quote: evidence_110a28359ad94aa7",
+      "excerpt_or_summary": "Shows running agents",
+      "retrieved_at": "2026-10-10T11:51:19.262940Z",
+      "source_version": null,
+      "collection_method": "exa /contents",
+      "stance": "SUPPORTS",
+      "verification_method": null,
+      "test_context": null,
+      "observed_result": null
+    },
+    {
+      "id": "evidence_7f10c116b29e4ee4",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.262960Z",
+      "updated_at": "2026-10-10T11:51:19.262960Z",
+      "claim": "来源声明可显示运行状态，尚未环境验收",
+      "source_type": "THIRD_PARTY",
+      "source_ref": "https://github.com/acme/dash",
+      "locator": "exact source quote: evidence_110a28359ad94aa7",
+      "excerpt_or_summary": "Shows running agents",
+      "retrieved_at": "2026-10-10T11:51:19.262961Z",
+      "source_version": null,
+      "collection_method": "exa /contents",
+      "stance": "SUPPORTS",
+      "verification_method": null,
+      "test_context": null,
+      "observed_result": null
+    },
+    {
+      "id": "evidence_13d167e2016c4caf",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.262975Z",
+      "updated_at": "2026-10-10T11:51:19.262975Z",
+      "claim": "来源声明可显示运行状态，尚未环境验收",
+      "source_type": "THIRD_PARTY",
+      "source_ref": "https://github.com/acme/dash",
+      "locator": "exact source quote: evidence_110a28359ad94aa7",
+      "excerpt_or_summary": "Shows running agents",
+      "retrieved_at": "2026-10-10T11:51:19.262975Z",
+      "source_version": null,
+      "collection_method": "exa /contents",
+      "stance": "SUPPORTS",
+      "verification_method": null,
+      "test_context": null,
+      "observed_result": null
+    },
+    {
+      "id": "evidence_04ce13ad4a414db6",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.264003Z",
+      "updated_at": "2026-10-10T11:51:19.264003Z",
+      "claim": "主要候选文档：Dash",
+      "source_type": "SOURCE_CODE",
+      "source_ref": "https://github.com/acme/dash/blob/main/LICENSE",
+      "locator": "深度文档：许可原文",
+      "excerpt_or_summary": "Shows running agents. MIT permission.",
+      "retrieved_at": "2026-10-10T11:51:19.264003Z",
+      "source_version": "abc",
+      "collection_method": "github public API",
+      "stance": "CONTEXT",
+      "verification_method": null,
+      "test_context": null,
+      "observed_result": null
+    },
+    {
+      "id": "evidence_68b3fca9a2954695",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.264600Z",
+      "updated_at": "2026-10-10T11:51:19.264600Z",
+      "claim": "来源声明可显示运行状态，尚未环境验收",
+      "source_type": "SOURCE_CODE",
+      "source_ref": "https://github.com/acme/dash/blob/main/LICENSE",
+      "locator": "exact source quote: evidence_04ce13ad4a414db6",
+      "excerpt_or_summary": "Shows running agents",
+      "retrieved_at": "2026-10-10T11:51:19.264601Z",
+      "source_version": null,
+      "collection_method": "github public API",
+      "stance": "SUPPORTS",
+      "verification_method": null,
+      "test_context": null,
+      "observed_result": null
+    },
+    {
+      "id": "evidence_160bbd5120e64cea",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.264616Z",
+      "updated_at": "2026-10-10T11:51:19.264617Z",
+      "claim": "来源声明可显示运行状态，尚未环境验收",
+      "source_type": "SOURCE_CODE",
+      "source_ref": "https://github.com/acme/dash/blob/main/LICENSE",
+      "locator": "exact source quote: evidence_04ce13ad4a414db6",
+      "excerpt_or_summary": "Shows running agents",
+      "retrieved_at": "2026-10-10T11:51:19.264617Z",
+      "source_version": null,
+      "collection_method": "github public API",
+      "stance": "SUPPORTS",
+      "verification_method": null,
+      "test_context": null,
+      "observed_result": null
+    },
+    {
+      "id": "evidence_544b4044d932461e",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.264631Z",
+      "updated_at": "2026-10-10T11:51:19.264631Z",
+      "claim": "来源声明可显示运行状态，尚未环境验收",
+      "source_type": "SOURCE_CODE",
+      "source_ref": "https://github.com/acme/dash/blob/main/LICENSE",
+      "locator": "exact source quote: evidence_04ce13ad4a414db6",
+      "excerpt_or_summary": "Shows running agents",
+      "retrieved_at": "2026-10-10T11:51:19.264631Z",
+      "source_version": null,
+      "collection_method": "github public API",
+      "stance": "SUPPORTS",
+      "verification_method": null,
+      "test_context": null,
+      "observed_result": null
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assess_c3799cbb450e4acc",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.264606Z",
+      "updated_at": "2026-10-10T11:51:19.264606Z",
+      "condition_id": "cond_af9c1c3fcc144056",
+      "resource_ids": [
+        "res_585f21404e8b4dbb"
+      ],
+      "capability_ids": [
+        "cap_7e085d9774ca44d7"
+      ],
+      "context": "[UI 隔离验证] 查看 Agent 运行状态，页面清晰可读。无需固定动画或帧率。",
+      "status": "SUPPORTED",
+      "evidence_ids": [
+        "evidence_68b3fca9a2954695"
+      ],
+      "explanation": "来源声明可显示运行状态，尚未环境验收",
+      "gaps": [],
+      "assumptions": [],
+      "review_status": "CURRENT",
+      "revision_evaluated": 1
+    },
+    {
+      "id": "assess_808e60fe5af24c5a",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.264622Z",
+      "updated_at": "2026-10-10T11:51:19.264622Z",
+      "condition_id": "cond_bff185bd227d43df",
+      "resource_ids": [
+        "res_585f21404e8b4dbb"
+      ],
+      "capability_ids": [
+        "cap_7e085d9774ca44d7"
+      ],
+      "context": "[UI 隔离验证] 查看 Agent 运行状态，页面清晰可读。无需固定动画或帧率。",
+      "status": "SUPPORTED",
+      "evidence_ids": [
+        "evidence_160bbd5120e64cea"
+      ],
+      "explanation": "来源声明可显示运行状态，尚未环境验收",
+      "gaps": [],
+      "assumptions": [],
+      "review_status": "CURRENT",
+      "revision_evaluated": 1
+    },
+    {
+      "id": "assess_d35b0d0c493846e5",
+      "job_id": "job_23d6b6b0d2b14cfa",
+      "created_at": "2026-10-10T11:51:19.264636Z",
+      "updated_at": "2026-10-10T11:51:19.264636Z",
+      "condition_id": "cond_af30dacbb3824b15",
+      "resource_ids": [
+        "res_585f21404e8b4dbb"
+      ],
+      "capability_ids": [
+        "cap_7e085d9774ca44d7"
+      ],
+      "context": "[UI 隔离验证] 查看 Agent 运行状态，页面清晰可读。无需固定动画或帧率。",
+      "status": "SUPPORTED",
+      "evidence_ids": [
+        "evidence_544b4044d932461e"
+      ],
+      "explanation": "来源声明可显示运行状态，尚未环境验收",
+      "gaps": [],
+      "assumptions": [],
+      "review_status": "CURRENT",
+      "revision_evaluated": 1
+    }
+  ],
+  "proposal": {
+    "id": "prop_370f04bb5cda465a",
+    "job_id": "job_23d6b6b0d2b14cfa",
+    "created_at": "2026-10-10T11:51:19.265733Z",
+    "updated_at": "2026-10-10T11:51:19.265733Z",
+    "title": "复用现有 Agent 仪表盘",
+    "summary": "复用来源支持的状态界面；仍需接口适配和环境验收。",
+    "resource_ids": [
+      "res_585f21404e8b4dbb"
+    ],
+    "assessment_ids": [
+      "assess_c3799cbb450e4acc",
+      "assess_808e60fe5af24c5a",
+      "assess_d35b0d0c493846e5"
+    ],
+    "condition_coverage": [
+      "cond_af30dacbb3824b15",
+      "cond_af9c1c3fcc144056",
+      "cond_bff185bd227d43df"
+    ],
+    "integration_work": [
+      "适配运行时接口"
+    ],
+    "new_work": [
+      "验收状态更新"
+    ],
+    "uncovered_conditions": [],
+    "risks": [
+      "许可 UNKNOWN"
+    ],
+    "assumptions": [
+      "演示暂以单用户本地环境为前提",
+      "尚未在目标环境验收"
+    ],
+    "costs": {
+      "estimate": "UNKNOWN",
+      "basis": "没有经核实的方案实施价格"
+    },
+    "recommendation_reason": "真实来源支持显示状态",
+    "validity_status": "READY_FOR_REVIEW",
+    "revision_created": 1
+  },
+  "budget_usage": {
+    "actions": 11,
+    "tool_calls": 3,
+    "cost_usd": 0.011,
+    "known_cost_usd": 0.011,
+    "reserved_usd": 0.0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "model_requests": 8,
+    "cost_unknown": false,
+    "elapsed_seconds": 0.01,
+    "stopped_reason": null
+  },
+  "budget_config": {
+    "max_actions": 40,
+    "max_tool_calls": 20,
+    "max_runtime_seconds": 60,
+    "budget_usd": 1.0,
+    "max_model_output_tokens": 5000,
+    "max_model_input_tokens": 50000,
+    "max_search_rounds": 3,
+    "request_timeout_seconds": 60
+  },
+  "checkpoint": "finish",
+  "stopped_reason": null,
+  "delivery_notes": [],
+  "source_reviews": {
+    "res_585f21404e8b4dbb": {
+      "documents": [
+        {
+          "url": "https://github.com/acme/dash/blob/main/LICENSE",
+          "category": "许可原文",
+          "version": "abc"
+        }
+      ],
+      "notes": [],
+      "status": "READ"
+    }
+  }
+}

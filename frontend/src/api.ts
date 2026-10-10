@@ -10,6 +10,9 @@ export interface GoalBrief {
   purpose?: string;
   original_user_text: string;
   revision: number;
+  requirements?: {text: string; provenance: string}[];
+  condition_decisions?: {action: string; original_statement: string; statement: string; revision: number}[];
+  assumption_decisions?: {action: string; text: string; revision: number}[];
   open_questions?: string[];
   constraints?: {text: string; provenance: string}[];
   assumptions?: {text: string; provenance: string}[];
@@ -21,6 +24,7 @@ export interface Condition {
   obligation: "REQUIRED" | "OPTIONAL";
   dimension: "FUNCTIONAL" | "QUALITY" | "COMPLIANCE" | "OTHER";
   origin?: string;
+  provenance?: "USER_STATED" | "USER_CONFIRMED" | "SYSTEM_ASSUMED";
   verification_method?: string;
 }
 
@@ -81,6 +85,31 @@ export interface JobResult {
   budget_usage?: UsageSnapshot;
   stopped_reason?: string | null;
   delivery_notes?: string[];
+  source_reviews?: Record<string, {status: string; documents: {url: string; category: string; version?: string}[]; notes: string[]}>;
+}
+
+export interface ConditionEdit {
+  condition_id: string;
+  action: "confirm" | "update" | "remove";
+  statement?: string;
+  obligation?: Condition["obligation"];
+  dimension?: Condition["dimension"];
+  verification_method?: string;
+}
+export interface GoalReview {
+  expected_revision: number;
+  conditions: ConditionEdit[];
+  assumptions: {index: number; action: "confirm" | "remove"}[];
+  purpose?: string;
+}
+export async function reviewGoal(id: string, review: GoalReview): Promise<void> {
+  const r = await fetch(`${API}/api/jobs/${id}/review`, {
+    method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(review),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => null);
+    throw new Error(typeof body?.detail === "string" ? body.detail : "调整未提交，请检查内容后重试");
+  }
 }
 
 export interface JobListItem {

@@ -17,6 +17,7 @@ from .controller import Controller
 from .exporter import to_json, to_markdown
 from .llm_adapter import LLMAdapter
 from .models import JobStatus
+from .goal_review import GoalReview
 from .repository import Repository
 from .search_adapter import SearchAdapter
 from .security import redact_secrets
@@ -138,6 +139,14 @@ def create_app(repository: Repository | None = None, llm=None, search=None):
     def revisions(job_id: str):
         repo, _, _ = require(job_id)
         return repo.list_revisions(job_id)
+
+    @app.post('/api/jobs/{job_id}/review')
+    async def review_goal(job_id: str, body: GoalReview):
+        repo, ctrl, _ = require(job_id)
+        try: ok = await ctrl.review_goal(job_id, body)
+        except ValueError as exc: raise HTTPException(400, str(exc))
+        if not ok: raise HTTPException(409, '只可调整已完成的当前修订；请刷新后重试')
+        return {'id': job_id, 'status': 'RESEARCHING', 'revision': repo.get_job(job_id).current_revision}
 
     @app.get('/api/jobs/{job_id}/revisions/{revision}')
     def revision_result(job_id: str, revision: int):

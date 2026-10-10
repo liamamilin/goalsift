@@ -127,6 +127,15 @@ class Repository:
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(SCHEMA)
+        # Additive upgrades keep existing data and immutable snapshots intact.
+        for table, column, default in (
+            ('goals', 'condition_decisions', "'[]'"),
+            ('goals', 'assumption_decisions', "'[]'"),
+            ('conditions', 'provenance', "'SYSTEM_ASSUMED'"),
+        ):
+            columns = {r['name'] for r in self._conn.execute(f'PRAGMA table_info({table})')}
+            if column not in columns:
+                self._conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} TEXT NOT NULL DEFAULT {default}')
         self._conn.commit()
         # write-ahead for concurrency
         self._conn.execute("PRAGMA journal_mode=WAL")
@@ -227,11 +236,12 @@ class Repository:
     def save_goal(self, g: Goal) -> None:
         with self.transaction() as c:
             c.execute(
-                "INSERT OR REPLACE INTO goals VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO goals VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (g.id, g.job_id, g.statement, g.purpose, g.revision,
                  g.original_user_text, _j(g.requirements), _j(g.constraints),
                  _j(g.assumptions), _j(g.open_questions),
-                 g.created_at.isoformat(), g.updated_at.isoformat()),
+                 g.created_at.isoformat(), g.updated_at.isoformat(),
+                 _j(g.condition_decisions), _j(g.assumption_decisions)),
             )
 
     @synchronized
@@ -246,6 +256,8 @@ class Repository:
             constraints=json.loads(r["constraints"] or "[]"),
             assumptions=json.loads(r["assumptions"] or "[]"),
             open_questions=json.loads(r["open_questions"] or "[]"),
+            condition_decisions=json.loads(r['condition_decisions']),
+            assumption_decisions=json.loads(r['assumption_decisions']),
             created_at=r["created_at"], updated_at=r["updated_at"],
         )
 
@@ -254,12 +266,12 @@ class Repository:
     def save_condition(self, c_obj: Condition) -> None:
         with self.transaction() as c:
             c.execute(
-                "INSERT OR REPLACE INTO conditions VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT OR REPLACE INTO conditions VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (c_obj.id, c_obj.job_id, c_obj.statement, c_obj.obligation.value,
                  c_obj.dimension.value, c_obj.origin, _j(c_obj.source_refs),
                  c_obj.scope, c_obj.verification_method, _j(c_obj.relations),
                  c_obj.validity_status.value, c_obj.revision_created,
-                 c_obj.created_at.isoformat(), c_obj.updated_at.isoformat()),
+                 c_obj.created_at.isoformat(), c_obj.updated_at.isoformat(), c_obj.provenance.value),
             )
 
     @synchronized
@@ -270,6 +282,7 @@ class Repository:
             id=r["id"], job_id=r["job_id"], statement=r["statement"],
             obligation=Obligation(r["obligation"]), dimension=Dimension(r["dimension"]),
             origin=r["origin"], source_refs=json.loads(r["source_refs"] or "[]"),
+            provenance=r['provenance'],
             scope=r["scope"], verification_method=r["verification_method"],
             relations=json.loads(r["relations"] or "[]"),
             validity_status=ValidityStatus(r["validity_status"]),
@@ -673,6 +686,7 @@ class Repository:
                 "checkpoint": state.get("stage", "define"),
                 "stopped_reason": job.checkpoint_ref,
                 "delivery_notes": state.get("delivery_notes", []),
+                "source_reviews": state.get("source_reviews", {}),
             }
 
     @synchronized
