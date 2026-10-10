@@ -7,6 +7,7 @@ export type JobStatus =
 export interface GoalBrief {
   id: string;
   statement: string;
+  purpose?: string;
   original_user_text: string;
   revision: number;
   open_questions?: string[];
@@ -63,6 +64,7 @@ export interface ProposalItem {
   new_work?: string[];
   assessment_ids?: string[];
   uncovered_conditions?: string[];
+  condition_coverage?: string[];
 }
 
 export interface JobResult {

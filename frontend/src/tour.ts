@@ -59,14 +59,16 @@ export function runHomeTour(): Driver {
  * Workspace tour. Steps adapt to job status so the guidance always matches
  * what the user should actually do next.
  */
-export function runWorkspaceTour(status: JobStatus): Driver {
+export function runWorkspaceTour(status: JobStatus, options: { readOnly?: boolean; onDestroyed?: () => void } = {}): Driver {
   stopTour();
-  const steps = workspaceSteps(status);
+  const steps = workspaceSteps(status).filter((step) => !options.readOnly ||
+    !['[data-tour="ws-start"]', '[data-tour="ws-input"]', '[data-tour="ws-refine"]'].includes(step.element));
   const d = driver({
     showProgress: true,
     nextBtnText: "Next →",
     prevBtnText: "← Back",
     doneBtnText: "Done",
+    onDestroyed: options.onDestroyed,
     steps,
   });
   d.drive();

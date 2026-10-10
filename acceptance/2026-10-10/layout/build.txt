@@ -1,0 +1,5 @@
+npm run lint: PASS (oxlint, no warnings)
+npm run build: PASS (TypeScript and Vite 8.3.4, 2029 modules)
+Final build: dist/assets/index-BPChHHuj.css 57.97 kB; dist/assets/index-KEhenzS2.js 501.03 kB (gzip 154.24 kB).
+Vite emitted the advisory for chunks over 500 kB. No build errors.
+git diff --check: PASS

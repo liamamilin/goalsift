@@ -97,7 +97,7 @@ export default function App() {
       </aside>
 
       {/* Main content area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Mobile header */}
         <header className="flex items-center gap-3 border-b bg-card/80 px-4 py-3 backdrop-blur-sm md:hidden">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
