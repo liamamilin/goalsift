@@ -37,6 +37,12 @@ def to_markdown(repo: Repository, job_id: str, *, view: dict | None = None) -> s
     conditions = {c['id']: c for c in d['conditions']}
     resources = {r['id']: r for r in d['resources']}
     evidence = {e['id']: e for e in d['evidence']}
+    if d.get('research_scope'):
+        scope = d['research_scope']
+        lines += ['## 本轮定向补查', '', f"- 基于修订：{scope['base_revision']}；本轮费用上限：${scope['budget_usd']}",
+                  '- 调查条件：' + '；'.join(conditions[cid]['statement'] for cid in scope['condition_ids'] if cid in conditions),
+                  '- 调查问题：' + (scope['question'] or '核查所选条件的依据与缺口'),
+                  f"- 沿用评价：{len(d.get('reused_assessment_ids', []))} 项；新增资料可能影响同一候选的其他条件。", '']
     for c in conditions.values():
         lines += [f'- **[{c["obligation"]} / {c["dimension"]}]** {c["statement"]} (`{c["id"]}`)',
                   '  - 确认来源：' + c.get('provenance', 'SYSTEM_ASSUMED'),

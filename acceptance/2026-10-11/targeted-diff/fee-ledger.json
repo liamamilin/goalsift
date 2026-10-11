@@ -1,0 +1,12 @@
+{
+  "authorized_total_usd": 1,
+  "prior_conservative_usd": 0.5211726,
+  "new_test_server_cap_usd": 0.12,
+  "new_test_requested_cap_usd": 0.1,
+  "new_recorded_usd": 0.017689,
+  "new_reserved_usd": 0,
+  "cost_unknown": false,
+  "cumulative_recorded_or_conservative_usd": 0.5388616,
+  "remaining_usd": 0.4611384,
+  "basis": "application conservative model token rates plus Exa reported cost; not a provider invoice"
+}

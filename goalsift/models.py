@@ -252,6 +252,7 @@ class Condition(_Base):
     dimension: Dimension
     origin: str
     provenance: Provenance = Provenance.SYSTEM_ASSUMED
+    lineage_id: str | None = None
     source_refs: list[str] = Field(default_factory=list)
     scope: str | None = None
     verification_method: str | None = None

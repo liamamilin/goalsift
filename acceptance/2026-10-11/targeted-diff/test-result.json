@@ -1,0 +1,16 @@
+{
+  "verdict": "PASS",
+  "command": ".venv/bin/python -m pytest -q",
+  "exit_code": 0,
+  "collected_count": 114,
+  "test_counts": {
+    "tests/test_goal_review_depth.py": 14,
+    "tests/test_isolation.py": 12,
+    "tests/test_m4_state.py": 16,
+    "tests/test_m5_security.py": 19,
+    "tests/test_runtime_integration.py": 27,
+    "tests/test_targeted_diff.py": 12,
+    "tests/test_validators_m3.py": 14
+  },
+  "note": "Project default -q plus CLI -q suppresses the summary; exit zero and the actual collection inventory establish the result."
+}

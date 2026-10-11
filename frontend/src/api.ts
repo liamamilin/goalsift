@@ -25,6 +25,7 @@ export interface Condition {
   dimension: "FUNCTIONAL" | "QUALITY" | "COMPLIANCE" | "OTHER";
   origin?: string;
   provenance?: "USER_STATED" | "USER_CONFIRMED" | "SYSTEM_ASSUMED";
+  lineage_id?: string | null;
   verification_method?: string;
 }
 
@@ -86,6 +87,36 @@ export interface JobResult {
   stopped_reason?: string | null;
   delivery_notes?: string[];
   source_reviews?: Record<string, {status: string; documents: {url: string; category: string; version?: string}[]; notes: string[]}>;
+  research_scope?: {type: string; base_revision: number; condition_ids: string[]; resource_ids: string[]; refreshed_resource_ids: string[]; budget_usd: number; question: string} | null;
+  reused_assessment_ids?: string[];
+}
+
+export interface ResearchRequest {
+  expected_revision: number;
+  condition_ids: string[];
+  resource_ids: string[];
+  budget_usd: number;
+  question: string;
+}
+export async function investigate(id: string, body: ResearchRequest): Promise<void> {
+  const r = await fetch(`${API}/api/jobs/${id}/investigate`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  if (!r.ok) { const error = await r.json().catch(() => null); throw new Error(typeof error?.detail === "string" ? error.detail : "补查未提交，请检查内容后重试"); }
+}
+export interface RevisionDiff {
+  base_revision: number; target_revision: number; target_status: JobStatus; is_partial: boolean;
+  scope: JobResult["research_scope"]; goal_changes: string[];
+  conditions: {added: Condition[]; removed: Condition[]; changed: {before: Condition; after: Condition}[]; unchanged: number};
+  resources: {before: ResourceItem | null; after: ResourceItem | null}[];
+  documents: {url: string; kind: "new" | "changed" | "reread"; category: string; version: string | null; before_version: string | null; retrieved_at: string}[];
+  assessment_changes: {condition: string; condition_id: string; resource: string; url: string; before: string[]; after: string[]; before_explanations: string[]; explanations: string[]; gaps: string[]}[];
+  newly_covered: string[]; newly_uncovered: string[];
+  summary: {new_sources: number; changed_sources: number; reread_sources: number; new_evidence: number; reused_assessments: number; coverage_before: number; coverage_after: number; conditions_before: number; conditions_after: number};
+  usage: {before: UsageSnapshot; after: UsageSnapshot};
+}
+export async function compareRevisions(id: string, base: number, target?: number): Promise<RevisionDiff> {
+  const r = await fetch(`${API}/api/jobs/${id}/compare?base=${base}${target ? `&target=${target}` : ""}`);
+  if (!r.ok) throw new Error("无法读取修订比较，请刷新后重试");
+  return r.json();
 }
 
 export interface ConditionEdit {

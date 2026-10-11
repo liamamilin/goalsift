@@ -5,6 +5,8 @@ import {
   type ProposalItem, type ResourceItem,
 } from "./api";
 import { GoalReviewView } from "./GoalReview";
+import { TargetedResearchDialog } from "./TargetedResearch";
+import { RevisionCompareView } from "./RevisionCompare";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -184,6 +186,8 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
   const [tabTouched, setTabTouched] = useState(false);
   const tab = tabTouched ? selectedTab : (job ? NEXT_STEP[job.status].tab ?? "proposal" : "proposal");
   const [selA, setSelA] = useState<string | null>(null);
+  const [researchConditions, setResearchConditions] = useState<string[] | null>(null);
+  const [draftCount, setDraftCount] = useState(0);
   const cursorRef = useRef(0);
 
   const load = useCallback(async () => {
@@ -308,9 +312,11 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
               {revisions.map((r) => <option key={r.revision} value={r.revision}>历史修订 {r.revision}</option>)}
             </select>}
             {historyJob && <Badge variant="outline">历史快照 · 只读</Badge>}
+            {revisions.some(r => r.revision < job.revision) && <Button size="sm" variant={tab === "changes" ? "default" : "outline"} onClick={() => onTabChange("changes")}>修订变化</Button>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {!historyJob && <div className="flex gap-2" data-tour="ws-start">
+              {job.status === "COMPLETED" && <Button size="sm" variant="outline" disabled={draftCount > 0} onClick={() => setResearchConditions((job.proposal?.uncovered_conditions?.length ? job.proposal.uncovered_conditions : job.conditions.map(c => c.id)).slice(0,8))}>针对缺口补查</Button>}
               {(job.status === "CREATED" || job.status === "PAUSED" || job.status === "FAILED" || job.status === "PARTIAL") && (
                 <Button size="sm" onClick={start} disabled={running || actionBusy} className="gap-1.5">
                   <Play className="h-3.5 w-3.5" />{job.status === "CREATED" ? "Start research" : "Resume"}
@@ -330,6 +336,8 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
           </div>
         </div>
       </header>
+      {researchConditions && liveJob && !historyJob && <TargetedResearchDialog key={`${job.id}:${job.revision}`} job={liveJob} initialConditions={researchConditions} onClose={() => setResearchConditions(null)} onSaved={async () => {await load(); onTabChange("changes");}} />}
+      {job.research_scope && <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs leading-relaxed">本轮补查 {job.research_scope.condition_ids.length} 项条件 · 基于修订 {job.research_scope.base_revision} · 费用上限 ${job.research_scope.budget_usd} · 沿用 {job.reused_assessment_ids?.length ?? 0} 项评价</div>}
 
       {loadError && <div role="alert" className="mb-4 text-sm text-destructive">连接中断：{loadError}，正在重试。</div>}
       {job.stopped_reason && <div role="alert" className="mb-4 rounded-lg border border-warning bg-warning/5 p-3 text-sm">{job.stopped_reason}</div>}
@@ -450,13 +458,17 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
         </TabsList>
 
         <TabsContent value="proposal" className="mt-4">
-          {job.proposal ? <ProposalView key={job.proposal.id} p={job.proposal} conditions={job.conditions} onTrace={() => { setSelA(job.proposal?.assessment_ids?.[0] ?? null); onTabChange("match"); }} /> : (
+          {job.proposal ? <ProposalView key={job.proposal.id} p={job.proposal} conditions={job.conditions} onResearch={!historyJob && job.status === "COMPLETED" ? id => setResearchConditions([id]) : undefined} onTrace={() => { setSelA(job.proposal?.assessment_ids?.[0] ?? null); onTabChange("match"); }} /> : (
             <EmptyTab label="No proposal yet" hint="Research still in progress or no credible path found." />
           )}
         </TabsContent>
 
         <TabsContent value="conditions" className="mt-4">
-          <GoalReviewView key={`${job.id}:${job.revision}:${historyJob ? 'history' : 'current'}`} job={job} readOnly={!!historyJob} onSaved={load} onAssessment={(id) => { setSelA(id); onTabChange("match"); }} />
+          <GoalReviewView key={`${job.id}:${job.revision}:${historyJob ? 'history' : 'current'}`} job={job} readOnly={!!historyJob} onSaved={load} onResearch={setResearchConditions} onDraftChange={setDraftCount} onAssessment={(id) => { setSelA(id); onTabChange("match"); }} />
+        </TabsContent>
+
+        <TabsContent value="changes" className="mt-4">
+          <RevisionCompareView key={`${job.id}:${job.revision}:${historyJob ? 'history' : 'current'}`} job={job} revisions={revisions} historical={!!historyJob} />
         </TabsContent>
 
         <TabsContent value="resources" className="mt-4 min-w-0 [overflow-wrap:anywhere]">
@@ -537,7 +549,7 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
 }
 
 /* ── Proposal View ─── */
-function ProposalView({ p, conditions, onTrace }: { p: ProposalItem; conditions: Condition[]; onTrace: () => void }) {
+function ProposalView({ p, conditions, onTrace, onResearch }: { p: ProposalItem; conditions: Condition[]; onTrace: () => void; onResearch?: (id: string) => void }) {
   const valid = p.validity_status === "READY_FOR_REVIEW";
   const uncovered = conditions.filter((c) => p.uncovered_conditions?.includes(c.id));
   const costLabels: Record<string, string> = { estimate: "费用估计", basis: "估计依据", currency: "币种", amount: "金额" };
@@ -581,7 +593,7 @@ function ProposalView({ p, conditions, onTrace }: { p: ProposalItem; conditions:
           <Accordion type="multiple" defaultValue={["risks"]} className="mt-2">
             {uncovered.length > 0 && <AccordionItem value="uncovered">
               <AccordionTrigger className="py-3 text-sm">未覆盖的条件 · {uncovered.length}</AccordionTrigger>
-              <AccordionContent><ul className="list-disc space-y-3 pl-4 text-sm leading-relaxed text-muted-foreground">{uncovered.map((c) => <li key={c.id}>{c.statement}</li>)}</ul></AccordionContent>
+              <AccordionContent><ul className="space-y-3 text-sm leading-relaxed text-muted-foreground">{uncovered.map((c) => <li key={c.id} className="space-y-2"><p>{c.statement}</p>{onResearch && <Button size="sm" variant="outline" onClick={() => onResearch(c.id)}>补查此缺口</Button>}</li>)}</ul></AccordionContent>
             </AccordionItem>}
             {p.risks.length > 0 && <AccordionItem value="risks" className="border-0">
               <AccordionTrigger className="py-3 text-sm">风险与限制 · {p.risks.length}</AccordionTrigger>

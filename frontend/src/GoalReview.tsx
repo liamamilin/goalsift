@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Check, Pencil, RotateCcw, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { reviewGoal, type Condition, type ConditionEdit, type JobResult } from "./api";
 
-export function GoalReviewView({job, readOnly, onSaved, onAssessment}: {
+export function GoalReviewView({job, readOnly, onSaved, onAssessment, onResearch, onDraftChange}: {
   job: JobResult; readOnly: boolean; onSaved: () => Promise<void>; onAssessment: (id: string) => void;
+  onResearch: (ids: string[]) => void; onDraftChange: (count: number) => void;
 }) {
   const [edits, setEdits] = useState<Record<string, ConditionEdit>>({});
   const [assumptions, setAssumptions] = useState<Record<number, "confirm" | "remove">>({});
@@ -17,6 +18,7 @@ export function GoalReviewView({job, readOnly, onSaved, onAssessment}: {
   const [busy, setBusy] = useState(false);
   const editable = !readOnly && job.status === "COMPLETED" && !busy;
   const count = Object.keys(edits).length + Object.keys(assumptions).length + Number(purpose !== undefined);
+  useEffect(() => {onDraftChange(count); return () => onDraftChange(0);}, [count, onDraftChange]);
   const setEdit = (id: string, value?: ConditionEdit) => setEdits(prev => {
     const next = {...prev}; if (value) next[id] = value; else delete next[id]; return next;
   });
@@ -61,6 +63,7 @@ export function GoalReviewView({job, readOnly, onSaved, onAssessment}: {
         <div className="mb-2 flex flex-wrap gap-1.5"><Badge variant="outline" className="text-[10px]">{edit?.obligation || c.obligation}</Badge><Badge variant="outline" className="text-[10px]">{edit?.dimension || c.dimension}</Badge><Badge variant="outline" className={cn("text-[10px]", c.provenance === "USER_CONFIRMED" ? "text-success border-success/30" : "text-warning border-warning/30")}>{c.provenance === "USER_CONFIRMED" ? "用户已确认" : c.provenance === "USER_STATED" ? "用户原话" : "系统推导 · 待确认"}</Badge>{edit && <Badge className="text-[10px]">待提交：{edit.action === "remove" ? "移出目标" : edit.action === "update" ? "修改并确认" : "确认"}</Badge>}</div>
         {edit?.action === "update" ? <ConditionEditor condition={c} edit={edit} onChange={value => setEdit(c.id, value)} disabled={!editable} /> : <p className={cn("text-sm leading-relaxed", edit?.action === "remove" && "line-through text-muted-foreground")}>{c.statement}</p>}
         {editable && <div className="mt-3 flex flex-wrap gap-1">{edit ? <Button variant="ghost" size="sm" onClick={() => setEdit(c.id)}><RotateCcw className="h-3 w-3" />撤销</Button> : <>{c.provenance !== "USER_CONFIRMED" && <Button variant="outline" size="sm" onClick={() => setEdit(c.id, {condition_id: c.id, action: "confirm"})}><Check className="h-3 w-3" />确认条件</Button>}<Button variant="ghost" size="sm" onClick={() => setEdit(c.id, {condition_id: c.id, action: "update", statement: c.statement, obligation: c.obligation, dimension: c.dimension, verification_method: c.verification_method || ""})}><Pencil className="h-3 w-3" />修改</Button><Button variant="ghost" size="sm" onClick={() => setEdit(c.id, {condition_id: c.id, action: "remove"})}><Trash2 className="h-3 w-3" />移出目标</Button></>}</div>}
+        {editable && <Button variant="ghost" size="sm" className="mt-2 text-primary" onClick={() => onResearch([c.id])} disabled={count > 0}>补查此条件</Button>}
         <details className="mt-3 text-xs leading-relaxed text-muted-foreground"><summary className="cursor-pointer">推导依据与验收方式</summary><p className="mt-2 break-words">依据：{c.origin || "未记录"}</p><p className="mt-2">验收：{c.verification_method || "待确认"}</p></details>
         {!!linked.length && <details className="mt-3 border-t pt-3"><summary className="cursor-pointer text-xs text-muted-foreground">查看 {linked.length} 项资源评估</summary><div className="mt-2 space-y-1">{linked.map(a => <button key={a.id} onClick={() => onAssessment(a.id)} className="flex w-full items-start gap-2 rounded-lg p-2 text-left hover:bg-accent"><Badge variant="outline" className="shrink-0 text-[10px]">{a.status}</Badge><span className="line-clamp-2 text-xs text-muted-foreground">{a.explanation}</span></button>)}</div></details>}
       </CardContent></Card>;

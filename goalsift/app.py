@@ -18,6 +18,8 @@ from .exporter import to_json, to_markdown
 from .llm_adapter import LLMAdapter
 from .models import JobStatus
 from .goal_review import GoalReview
+from .targeted_research import TargetedResearch
+from .revision_diff import compare_revisions
 from .repository import Repository
 from .search_adapter import SearchAdapter
 from .security import redact_secrets
@@ -154,6 +156,25 @@ def create_app(repository: Repository | None = None, llm=None, search=None):
         result = repo.get_revision(job_id, revision)
         if result is None: raise HTTPException(404, '该修订尚无完成快照')
         return result
+
+    @app.post('/api/jobs/{job_id}/investigate')
+    async def investigate(job_id: str, body: TargetedResearch):
+        repo, ctrl, _ = require(job_id)
+        try: ok = await ctrl.investigate(job_id, body)
+        except ValueError as exc: raise HTTPException(400, str(exc))
+        if not ok: raise HTTPException(409, '只可补查已完成的当前修订；请刷新后重试')
+        return {'id': job_id, 'status': 'RESEARCHING', 'revision': repo.get_job(job_id).current_revision}
+
+    @app.get('/api/jobs/{job_id}/compare')
+    def compare(job_id: str, base: int, target: int | None = None):
+        repo, _, job = require(job_id)
+        with repo.transaction():
+            after = repo.current_view(job_id) if target is None else repo.get_revision(job_id, target)
+            before = repo.get_revision(job_id, base)
+            if before is None or after is None: raise HTTPException(404, '比较的修订尚无保存结果')
+            if base >= after['revision']: raise HTTPException(400, '基准修订必须早于目标修订')
+            result = compare_revisions(before, after)
+        return json.loads(redact_secrets(json.dumps(result, ensure_ascii=False)))
 
     @app.get('/api/jobs/{job_id}/export')
     def export(job_id: str, fmt: str = 'markdown', revision: int | None = None):

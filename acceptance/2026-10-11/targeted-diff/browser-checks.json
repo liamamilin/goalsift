@@ -1,0 +1,26 @@
+{
+  "verdict": "PASS",
+  "desktop": [
+    1280,
+    720
+  ],
+  "mobile": {
+    "width": 390,
+    "height": 844,
+    "scrollWidth": 390
+  },
+  "fixtureSubmission": {
+    "revision": 2,
+    "completed": true
+  },
+  "liveSubmission": {
+    "revision": 3,
+    "completed": true
+  },
+  "historicalReadOnly": true,
+  "historicalResearchButtonCount": 0,
+  "draftBlocksResearch": true,
+  "undoRestoresResearch": true,
+  "escapeClosesDialog": true,
+  "liveConsoleErrors": []
+}
