@@ -191,6 +191,7 @@ class SearchAdapter:
                     source_url = content.get('html_url', '')
                     if not public_source or github_repository(source_url) != parts:
                         raise ValueError('文档来源不属于当前公共仓库')
+                    if len(text) > 12000: notes.append(f'{path} 仅保存前 12000 字符，后文未用于匹配判断。')
                     if text.strip(): docs.append(SearchResult(url=source_url, title=path,
                         text=redact_secrets(text)[:12000], version=content.get('sha'),
                         category=category, collection_method='github public API'))

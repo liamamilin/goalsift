@@ -86,7 +86,7 @@ export interface JobResult {
   budget_usage?: UsageSnapshot;
   stopped_reason?: string | null;
   delivery_notes?: string[];
-  source_reviews?: Record<string, {status: string; documents: {url: string; category: string; version?: string}[]; notes: string[]}>;
+  source_reviews?: Record<string, {status?: string; documents: {url: string; category: string; version?: string}[]; notes: string[]; match_context?: {evidence_id: string; url: string; stored_characters: number; supplied_characters: number; is_partial: boolean; excerpt_ranges: [number, number][]}[]}>;
   research_scope?: {type: string; base_revision: number; condition_ids: string[]; resource_ids: string[]; refreshed_resource_ids: string[]; budget_usd: number; question: string} | null;
   reused_assessment_ids?: string[];
 }

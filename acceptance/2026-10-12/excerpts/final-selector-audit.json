@@ -1,0 +1,5 @@
+{
+  "verdict": "PASS",
+  "sources_checked": 6,
+  "final_sampler_reproduces_actual_live_input_ranges": true
+}

@@ -1,0 +1,29 @@
+{
+  "verdict": "PASS",
+  "integration": "real Controller/SQLite/DeepSeek/Exa/GitHub; no new browser test",
+  "revision": 4,
+  "status": "COMPLETED",
+  "new_literal_claims_audited": 6,
+  "matching_source_count": 6,
+  "partial_sources": 4,
+  "all_new_claims_in_actual_supplied_spans": true,
+  "claim_read_times_and_versions_preserved": true,
+  "prior_snapshot_byte_identical": true,
+  "reused_assessments": 49,
+  "coverage": 6,
+  "condition_count": 7,
+  "data_dir": "/private/tmp/goalsift-excerpts-live-tm01q70a",
+  "usage": {
+    "actions": 5,
+    "tool_calls": 2,
+    "cost_usd": 0.0141889,
+    "known_cost_usd": 0.0141889,
+    "reserved_usd": 0.0,
+    "input_tokens": 14575,
+    "output_tokens": 2347,
+    "model_requests": 3,
+    "cost_unknown": false,
+    "elapsed_seconds": 27.44,
+    "stopped_reason": null
+  }
+}

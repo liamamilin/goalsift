@@ -1,0 +1,225 @@
+{
+  "base_revision": 3,
+  "target_revision": 4,
+  "target_status": "COMPLETED",
+  "is_partial": false,
+  "scope": {
+    "type": "targeted",
+    "base_revision": 3,
+    "condition_ids": [
+      "cond_66f43a5a54b44e78"
+    ],
+    "resource_ids": [
+      "res_ba86ffebf9774ba7"
+    ],
+    "refreshed_resource_ids": [
+      "res_ba86ffebf9774ba7"
+    ],
+    "budget_usd": 0.08,
+    "question": "核查界面运行状态指示的具体文档依据；只依据实际提供的片段，不推断整份文档没有某项能力。"
+  },
+  "goal_changes": [],
+  "conditions": {
+    "added": [],
+    "removed": [],
+    "changed": [],
+    "unchanged": 7
+  },
+  "resources": [],
+  "documents": [],
+  "assessment_changes": [
+    {
+      "condition": "控制台界面能够展示 Agent 的运行状态（如运行中/空闲/异常等状态指示）。",
+      "condition_id": "cond_66f43a5a54b44e78",
+      "resource": "builderz-labs/mission-control",
+      "url": "https://github.com/builderz-labs/mission-control",
+      "before": [
+        "PARTIAL"
+      ],
+      "after": [
+        "SUPPORTED"
+      ],
+      "before_explanations": [
+        "README 列出 Agents 的注册、presence、会话与运行时适配器，并称可查看运行与失败；但未直接引用界面状态指示的具体文案。"
+      ],
+      "explanations": [
+        "README 展示活动流含每 Agent 状态与心跳事件，概览页含 fleet 状态；注册接口将状态置为 idle。"
+      ],
+      "gaps": [
+        "未给出状态枚举的完整定义（如 running/error 等取值）"
+      ]
+    },
+    {
+      "condition": "页面布局为响应式，在桌面与移动/窄屏视口下均可正常阅读与操作。",
+      "condition_id": "cond_8794f11100e74023",
+      "resource": "builderz-labs/mission-control",
+      "url": "https://github.com/builderz-labs/mission-control",
+      "before": [
+        "UNKNOWN"
+      ],
+      "after": [
+        "UNKNOWN"
+      ],
+      "before_explanations": [
+        "现有证据未包含任何响应式布局、断点或移动视口适配的说明或截图，无法判定。"
+      ],
+      "explanations": [
+        "所给片段未提及响应式布局、断点或移动端适配；缺失不等于不存在，需查前端源码或文档确认。"
+      ],
+      "gaps": [
+        "需查看 Tailwind 断点用法、移动端导航或官方截图/文档中的响应式说明"
+      ]
+    },
+    {
+      "condition": "提供 Agent 状态/任务数据的接口对接说明，且该说明有可追溯来源（官方文档、API 定义或源码中的接口实现）。",
+      "condition_id": "cond_9c8730155a4641ec",
+      "resource": "builderz-labs/mission-control",
+      "url": "https://github.com/builderz-labs/mission-control",
+      "before": [
+        "SUPPORTED"
+      ],
+      "after": [
+        "SUPPORTED"
+      ],
+      "before_explanations": [
+        "官方 agent-setup 文档给出注册接口示例，README 声明 OpenAPI 描述的 REST API、WebSocket 与 SSE 接口。"
+      ],
+      "explanations": [
+        "官方 agent-setup.md 给出注册/查询接口示例，package.json 引用 openapi.json 与 API 契约校验脚本。"
+      ],
+      "gaps": [
+        "任务（task）相关接口示例未在所给片段中出现",
+        "接口需 Bearer MC_API_KEY，与“无需登录鉴权”的演示预期存在张力，需确认是否可本地关闭"
+      ]
+    },
+    {
+      "condition": "控制台界面能够展示任务列表。",
+      "condition_id": "cond_b1b122672eaa46d1",
+      "resource": "builderz-labs/mission-control",
+      "url": "https://github.com/builderz-labs/mission-control",
+      "before": [
+        "SUPPORTED"
+      ],
+      "after": [
+        "SUPPORTED"
+      ],
+      "before_explanations": [
+        "README 明确 Tasks 面包含 Inbox、分配、执行、评审与完成回执，属任务列表能力；界面为 Web UI。"
+      ],
+      "explanations": [
+        "README 概览图说明含 task pipeline，正文亦提及 dispatch tasks、inspect runs、review failures。"
+      ],
+      "gaps": [
+        "未提供任务列表字段/排序/筛选等界面细节"
+      ]
+    },
+    {
+      "condition": "方案面向单用户本地演示场景，不引入登录鉴权、多用户协作或高帧率动画等能力要求。",
+      "condition_id": "cond_be699b5b72f74d0e",
+      "resource": "builderz-labs/mission-control",
+      "url": "https://github.com/builderz-labs/mission-control",
+      "before": [
+        "PARTIAL"
+      ],
+      "after": [
+        "PARTIAL"
+      ],
+      "before_explanations": [
+        "项目为自托管本地仪表盘、SQLite 存储，适合单机演示；但含角色、API 密钥、审批等治理面，可能引入鉴权配置。"
+      ],
+      "explanations": [
+        "定位为 self-hosted 本地 SQLite 单机控制台，符合单用户本地演示；但接口示例使用 Bearer 鉴权，鉴权是否可省略未说明。"
+      ],
+      "gaps": [
+        "未说明本地演示是否可禁用鉴权/访问控制",
+        "未说明是否存在多用户协作功能（存在也不构成要求，仅需确认非必需）"
+      ]
+    },
+    {
+      "condition": "所选控制台项目必须是开源项目，且其许可证允许商业使用（无禁止商用的条款）。",
+      "condition_id": "cond_e8fd80e9ac514d77",
+      "resource": "builderz-labs/mission-control",
+      "url": "https://github.com/builderz-labs/mission-control",
+      "before": [
+        "SUPPORTED"
+      ],
+      "after": [
+        "SUPPORTED"
+      ],
+      "before_explanations": [
+        "MIT 许可原文授予使用、复制、修改、分发、再许可与销售权，无禁止商用条款；仓库元数据亦标注 MIT。"
+      ],
+      "explanations": [
+        "MIT 许可原文授予无限制使用/复制/修改/分发/再许可/销售权利，无禁止商用条款；仓库元数据亦标注 MIT。"
+      ],
+      "gaps": [
+        "未提供第三方依赖（如 @scalar/api-reference-react、xterm 等）的许可清单，整体商用合规需另行核查依赖许可"
+      ]
+    },
+    {
+      "condition": "提供可复现的本地部署方法说明，且该说明有可追溯来源（官方 README/文档/发布说明等）。",
+      "condition_id": "cond_fb6e789c021a4a9d",
+      "resource": "builderz-labs/mission-control",
+      "url": "https://github.com/builderz-labs/mission-control",
+      "before": [
+        "SUPPORTED"
+      ],
+      "after": [
+        "SUPPORTED"
+      ],
+      "before_explanations": [
+        "README 指向官方部署指南，仓库含 Dockerfile 与 standalone 部署脚本，来源可追溯；具体步骤需查阅该文档。"
+      ],
+      "explanations": [
+        "README 有 Start locally 章节（Node 22+/pnpm），仓库含 Dockerfile 与 docker-entrypoint.sh，来源可追溯。"
+      ],
+      "gaps": [
+        "README 中源码安装命令块被省略，需查阅完整 README/quickstart.md 获取完整步骤",
+        "Docker 运行命令（docker run/compose）未在所给片段中出现"
+      ]
+    }
+  ],
+  "newly_covered": [
+    "控制台界面能够展示 Agent 的运行状态（如运行中/空闲/异常等状态指示）。"
+  ],
+  "newly_uncovered": [],
+  "summary": {
+    "new_sources": 0,
+    "changed_sources": 0,
+    "reread_sources": 0,
+    "new_evidence": 6,
+    "reused_assessments": 49,
+    "coverage_before": 5,
+    "conditions_before": 7,
+    "coverage_after": 6,
+    "conditions_after": 7
+  },
+  "usage": {
+    "before": {
+      "actions": 6,
+      "tool_calls": 2,
+      "cost_usd": 0.017689,
+      "known_cost_usd": 0.017689,
+      "reserved_usd": 0.0,
+      "input_tokens": 19486,
+      "output_tokens": 4036,
+      "model_requests": 4,
+      "cost_unknown": false,
+      "elapsed_seconds": 34.02,
+      "stopped_reason": null
+    },
+    "after": {
+      "actions": 5,
+      "tool_calls": 2,
+      "cost_usd": 0.0141889,
+      "known_cost_usd": 0.0141889,
+      "reserved_usd": 0.0,
+      "input_tokens": 14575,
+      "output_tokens": 2347,
+      "model_requests": 3,
+      "cost_unknown": false,
+      "elapsed_seconds": 27.44,
+      "stopped_reason": null
+    }
+  }
+}

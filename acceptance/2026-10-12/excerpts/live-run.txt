@@ -1,0 +1,13 @@
+{"started": true, "database": "/private/tmp/goalsift-excerpts-live-tm01q70a/goalsift.sqlite", "cap_usd": 0.08}
+Traceback (most recent call last):
+  File "/Users/milin/2026/软件开发/GoalSift-From Goals to Viable Paths./goal_research_phase_a_v0.2/acceptance/2026-10-12/excerpts/live_check.py", line 90, in <module>
+    asyncio.run(main())
+  File "/Users/milin/.pyenv/versions/3.10.13/lib/python3.10/asyncio/runners.py", line 44, in run
+    return loop.run_until_complete(main)
+  File "/Users/milin/.pyenv/versions/3.10.13/lib/python3.10/asyncio/base_events.py", line 649, in run_until_complete
+    return future.result()
+  File "/Users/milin/2026/软件开发/GoalSift-From Goals to Viable Paths./goal_research_phase_a_v0.2/acceptance/2026-10-12/excerpts/live_check.py", line 54, in main
+    (proof/'live-export.json').write_text(to_json(repo, jid))
+  File "/Users/milin/.pyenv/versions/3.10.13/lib/python3.10/pathlib.py", line 1151, in write_text
+    raise TypeError('data must be str, not %s' %
+TypeError: data must be str, not dict

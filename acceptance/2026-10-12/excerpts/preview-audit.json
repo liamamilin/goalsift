@@ -1,0 +1,24 @@
+{
+  "verdict": "PASS",
+  "health": {
+    "ok": true,
+    "version": "0.2.1"
+  },
+  "original_job_status": "COMPLETED",
+  "original_revision": 3,
+  "durable_tables_unchanged": [
+    "jobs",
+    "goals",
+    "conditions",
+    "resources",
+    "capabilities",
+    "evidence",
+    "assessments",
+    "proposals",
+    "events",
+    "checkpoints",
+    "revision_snapshots"
+  ],
+  "no_new_research_requested_on_original_preview": true,
+  "final_restart_verified": true
+}

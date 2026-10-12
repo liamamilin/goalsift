@@ -1,0 +1,20 @@
+{
+  "prior_cumulative_usd": 0.5388616,
+  "authorized_total_usd": 1,
+  "request_cap_usd": 0.08,
+  "new_usage": {
+    "actions": 5,
+    "tool_calls": 2,
+    "cost_usd": 0.0141889,
+    "known_cost_usd": 0.0141889,
+    "reserved_usd": 0.0,
+    "input_tokens": 14575,
+    "output_tokens": 2347,
+    "model_requests": 3,
+    "cost_unknown": false,
+    "elapsed_seconds": 27.44,
+    "stopped_reason": null
+  },
+  "cumulative_known_or_reserved_usd": 0.5530505,
+  "not_provider_invoice": true
+}

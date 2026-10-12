@@ -53,6 +53,10 @@ def to_markdown(repo: Repository, job_id: str, *, view: dict | None = None) -> s
                   '  - 来源：' + r['canonical_source'], '  - ' + r['description']]
         for doc in d.get('source_reviews', {}).get(r['id'], {}).get('documents', []):
             lines.append(f"  - 补充文档（{doc['category']}）：{doc['url']}；版本 {doc.get('version') or 'UNKNOWN'}")
+        for source in d.get('source_reviews', {}).get(r['id'], {}).get('match_context', []):
+            lines.append(f"  - 匹配资料：{source['url']}；已保存 {source['stored_characters']} 字符，实际提供 {source['supplied_characters']} 字符" + ('（选取片段，不能据此判断整份资料不存在某项能力）' if source['is_partial'] else ''))
+        for note in d.get('source_reviews', {}).get(r['id'], {}).get('notes', []):
+            lines.append('  - 读取限制：' + note)
     lines += ['', '## 条件匹配与证据', '']
     for a in d['assessments']:
         condition = conditions.get(a['condition_id'], {}).get('statement', a['condition_id'])

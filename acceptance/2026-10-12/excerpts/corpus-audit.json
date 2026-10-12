@@ -1,0 +1,30 @@
+{
+  "source": "https://github.com/builderz-labs/mission-control/blob/main/README.md",
+  "version": "07a29e050ee02f1104d1c5793eac6ad54b37bcd3",
+  "retrieved_at": "2026-10-11T03:14:37.942177+00:00",
+  "saved_characters": 12000,
+  "clue": "live activity, fleet status per runtime, and the task pipeline",
+  "old_excerpt_has_clue": false,
+  "new_excerpt_has_clue": true,
+  "old_full_source_guard_accepts": true,
+  "bounded_old_guard_accepts": false,
+  "new_excerpt_ranges": [
+    [
+      0,
+      550
+    ],
+    [
+      915,
+      1465
+    ],
+    [
+      7531,
+      8081
+    ],
+    [
+      9972,
+      10522
+    ]
+  ],
+  "new_excerpt_characters": 2242
+}

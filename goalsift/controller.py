@@ -15,7 +15,7 @@ from .models import (
 )
 from .repository import Repository
 from .search_adapter import SearchAdapter
-from .source_research import github_repository, related_document_links, focused_excerpt, source_identity, locate_quote
+from .source_research import github_repository, related_document_links, select_excerpt, source_identity, locate_quote
 from .security import redact_secrets
 from .validators import (ValidationError, validate_transition, validate_references,
     validate_assessment_status, validate_evidence_sources, validate_conflict_handling,
@@ -137,7 +137,8 @@ class Controller:
                 initial_resource_ids=list(state['resource_ids']),
                 matched_resource_ids=[rid for rid, ids in affected.items() if not ids],
                 deep_targets=targets, source_reviews=previous.get('source_reviews', {}),
-                deep_inspected_ids=[rid for rid in previous.get('source_reviews', {}) if rid not in targets and rid in state['resource_ids']],
+                deep_inspected_ids=[rid for rid, review in previous.get('source_reviews', {}).items()
+                    if review.get('status') in ('READ', 'UNAVAILABLE') and rid not in targets and rid in state['resource_ids']],
                 reused_assessment_ids=reused,
                 research_scope={'type': 'targeted', 'base_revision': request.expected_revision,
                     'condition_ids': [mapping[cid] for cid in request.condition_ids],
@@ -375,6 +376,8 @@ class Controller:
             if state.get('research_scope'): state['affected_conditions'][rid] = [c.id for c in current_conditions()]
             state['matched_resource_ids'] = [item for item in state.get('matched_resource_ids', []) if item != rid]
             state.setdefault('pending_matches', {}).pop(rid, None)
+            state.setdefault('pending_match_payloads', {}).pop(rid, None)
+            state.get('source_reviews', {}).get(rid, {}).pop('match_context', None)
 
         def save_deep_document(resource, doc):
             # Called inside an owned transaction. A read receipt is CONTEXT;
@@ -650,8 +653,16 @@ class Controller:
                     source_map = {e.id: e for e in evidence}
                     completed_ids = set(state.get('matched_resource_ids', []))
                     fresh = [r for r in resources if r.id not in completed_ids]
+                    pending_matches = state.setdefault('pending_matches', {})
+                    pending_payloads = state.setdefault('pending_match_payloads', {})
+                    focus_ids = set((state.get('research_scope') or {}).get('condition_ids', []))
+                    focus_text = '\n'.join(c.statement for c in conditions if not focus_ids or c.id in focus_ids)
+                    focus_text += '\n' + (state.get('research_scope') or {}).get('question', '')
                     payload = []
                     for r in fresh:
+                        if r.id in pending_payloads:
+                            payload.append(pending_payloads[r.id])
+                            continue
                         es = [e for e in evidence if e.source_ref in r.source_references
                               and e.stance == EvidenceStance.CONTEXT]
                         latest = {}
@@ -661,17 +672,17 @@ class Controller:
                         payload.append({'resource_id': r.id, 'name': r.name, 'url': r.canonical_source,
                             'license': r.license_claim, 'sources': [{'evidence_id': e.id,
                             'url': e.source_ref, 'category': e.locator,
-                            'text': focused_excerpt(e.excerpt_or_summary)} for e in es[:6]]})
+                            **select_excerpt(e.excerpt_or_summary, '' if r.id in pending_matches else focus_text)} for e in es[:6]]})
                     matches = []
                     provided_by_resource = {item['resource_id']: [source_map[s['evidence_id']] for s in item['sources']] for item in payload}
                     condition_ids_by_resource = {r.id: set(state.get('affected_conditions', {}).get(r.id, [c.id for c in conditions])) for r in fresh}
-                    pending_matches = state.setdefault('pending_matches', {})
                     for item in payload:
                         rid = item['resource_id']
                         if rid not in pending_matches:
                             batch = await external('REASON', 'MATCHED', self.llm.assess_resources,
                                 goal_text, [{'id': c.id, 'statement': c.statement, 'obligation': c.obligation.value, 'dimension': c.dimension.value} for c in conditions if c.id in condition_ids_by_resource[rid]], [item])
                             pending_matches[rid] = [m.model_dump(mode='json') for m in batch]
+                            pending_payloads[rid] = item
                             checkpoint()
                         matches.extend(ResourceMatch.model_validate(m) for m in pending_matches[rid])
                     by_cond, by_res = {c.id: c for c in conditions}, {r.id: r for r in resources}
@@ -698,19 +709,21 @@ class Controller:
                               and source_map[eid].source_ref in by_res[m.resource_id].source_references]
                         quote = m.supporting_quote.strip()
                         available = provided_by_resource.get(m.resource_id, [])
-                        located, quote = locate_quote(quote, es, available)
+                        ranges = {s['evidence_id']: s['excerpt_ranges'] for item in payload if item['resource_id'] == m.resource_id for s in item['sources']}
+                        located, quote = locate_quote(quote, es, available, ranges)
                         ids = []
                         gaps = list(m.gaps)
                         if status == AssessmentStatus.CONFLICTED:
                             refuting = [source_map[eid] for eid in m.refuting_evidence_ids if eid in source_map
                                 and source_map[eid].source_ref in by_res[m.resource_id].source_references]
                             refute_quote = m.refuting_quote.strip()
-                            refute_source, refute_quote = locate_quote(refute_quote, refuting, available)
+                            refute_source, refute_quote = locate_quote(refute_quote, refuting, available, ranges)
                             if located and refute_source and quote != refute_quote:
                                 for src, excerpt, stance in ((located, quote, EvidenceStance.SUPPORTS),
                                         (refute_source, refute_quote, EvidenceStance.REFUTES)):
                                     e = Evidence(id=new_id('evidence'), job_id=job_id, claim=m.explanation,
                                         source_type=src.source_type, source_ref=src.source_ref,
+                                        source_version=src.source_version, retrieved_at=src.retrieved_at,
                                         locator='exact source quote: ' + src.id, excerpt_or_summary=excerpt,
                                         collection_method=src.collection_method, stance=stance)
                                     claim_evidence.append(e)
@@ -725,6 +738,7 @@ class Controller:
                             else:
                                 e = Evidence(id=new_id('evidence'), job_id=job_id, claim=m.explanation,
                                     source_type=located.source_type, source_ref=located.source_ref,
+                                    source_version=located.source_version, retrieved_at=located.retrieved_at,
                                     locator='exact source quote: ' + located.id,
                                     excerpt_or_summary=quote, collection_method=located.collection_method,
                                     stance=EvidenceStance.REFUTES if status == AssessmentStatus.NOT_SATISFIED else EvidenceStance.SUPPORTS)
@@ -773,6 +787,9 @@ class Controller:
                             state['evidence_ids'].append(e.id)
                         for cap in caps_by_res.values(): self.repo.save_capability(cap)
                         for a in assessments: self.repo.save_assessment(a)
+                        for item in payload:
+                            review = state.setdefault('source_reviews', {}).setdefault(item['resource_id'], {'documents': [], 'notes': []})
+                            review['match_context'] = [{k: s[k] for k in ('evidence_id', 'url', 'stored_characters', 'supplied_characters', 'is_partial', 'excerpt_ranges')} for s in item['sources']]
                         state['reused_assessment_ids'] = [a.id for a in self.repo.list_assessments(job_id)
                             if a.id in state.get('reused_assessment_ids', []) and a.review_status == ReviewStatus.CURRENT]
                         all_current = [a for a in self.repo.list_assessments(job_id)
@@ -782,6 +799,7 @@ class Controller:
                                         (AssessmentStatus.SUPPORTED, AssessmentStatus.VERIFIED) for a in all_current)]
                         state['matched_resource_ids'] = [r.id for r in resources]
                         state.pop('pending_matches', None)
+                        state.pop('pending_match_payloads', None)
                         state['matched'] = True
                         checkpoint('decide')
                 elif stage == 'deep_inspect':
@@ -831,6 +849,7 @@ class Controller:
                             if docs:
                                 state['matched_resource_ids'] = [id for id in state.get('matched_resource_ids', []) if id != rid]
                                 state.setdefault('pending_matches', {}).pop(rid, None)
+                                state.setdefault('pending_match_payloads', {}).pop(rid, None)
                             else: state['delivery_notes'].append(resource.name + '：未获得额外文档，相关问题仍待核查。')
                             checkpoint()
                     checkpoint('match')

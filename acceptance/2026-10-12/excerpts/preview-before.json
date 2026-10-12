@@ -1,0 +1,7 @@
+{
+  "job": "job_8a48c356fcd049ab",
+  "revision": 3,
+  "status": "COMPLETED",
+  "before_backup": "/private/tmp/goalsift-completion-live/backups/before-excerpt.sqlite",
+  "port_8000_was_stopped": true
+}
