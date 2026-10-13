@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-13",
+  "environment": {
+    "base_url": "http://127.0.0.1:8012",
+    "data_dir": "/private/tmp/goalsift-p4-live-20261013",
+    "synthetic_job_id": "job_99d6ae93275f4571",
+    "user_job_or_database_used": false,
+    "source_scope": "public repositories and public documentation"
+  },
+  "limits": {
+    "per_revision_cost_usd": 0.12,
+    "p4_cost_cap_usd": 0.3,
+    "authorized_project_total_usd": 1.0,
+    "actions": 40,
+    "tool_calls": 24,
+    "runtime_seconds": 300,
+    "search_rounds": 3
+  },
+  "runs": [
+    {
+      "revision": 1,
+      "initial_stop": "MAX_ACTIONS checkpoint; resumed in the same isolated job",
+      "final_status": "COMPLETED",
+      "cost_usd": 0.0693626,
+      "runtime_seconds": 198.06,
+      "conditions": 9,
+      "resources": 8,
+      "assessments": 72,
+      "decision_saved": true
+    },
+    {
+      "revision": 2,
+      "clarification": "Preserved the original constraints; compare evidence only, select no stack or component, leave unsupported licenses and interfaces UNKNOWN, and perform no implementation.",
+      "final_status": "COMPLETED",
+      "cost_usd": 0.0639041,
+      "runtime_seconds": 177.56,
+      "conditions": 10,
+      "resources": 8,
+      "assessments": 80,
+      "selected_for_review": true,
+      "checklist_items": 27,
+      "checklist_follow_up_annotations": 1
+    }
+  ],
+  "cost_reconciliation": {
+    "p4_new_cost_usd": 0.1332667,
+    "p4_cap_usd": 0.3,
+    "p4_remaining_usd": 0.1667333,
+    "prior_cumulative_recorded_or_reserved_usd": 0.5530505,
+    "cumulative_recorded_or_reserved_usd": 0.6863172,
+    "remaining_under_user_authorization_usd": 0.3136828,
+    "outstanding_reservation_usd": 0,
+    "provider_invoice": false,
+    "calculation_note": "Conservative application usage records; not a provider invoice."
+  }
+}

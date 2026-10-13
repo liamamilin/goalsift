@@ -127,7 +127,7 @@ export default function App() {
         </header>
 
         {/* Page content with fade transition */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
           <div className="animate-fade-in" key={view.name === "workspace" ? `ws-${view.id}` : view.name}>
             <TooltipProvider>
               {view.name === "home" && <Home onOpen={(id) => setView({ name: "workspace", id })} />}

@@ -1,0 +1,17 @@
+{
+  "verdict": "PASS",
+  "source": "isolated live SQLite database captured through SQLite backup API while the service was running",
+  "backup_sha256": "f7c5f099351f160d94f3ba36513d8ce1b27bcbd3db5311441be1a7180fe3bf2d",
+  "backup_bytes": 1654784,
+  "backup_integrity_check": "ok",
+  "restored_copy_sha256": "f7c5f099351f160d94f3ba36513d8ce1b27bcbd3db5311441be1a7180fe3bf2d",
+  "restored_copy_integrity_check": "ok",
+  "restored_repository_open": true,
+  "restored_job_status": "COMPLETED",
+  "restored_current_revision": 2,
+  "restored_snapshot_revisions": [1, 2],
+  "restored_decision_rows": 2,
+  "restored_revision_2_checklist_annotations": 1,
+  "annotation_status": "FOLLOW_UP",
+  "scope": "One public-source synthetic job in a temporary isolated data root; no user database was read or changed."
+}

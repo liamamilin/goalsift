@@ -168,6 +168,14 @@ Condition 可包含 `lineage_id`，跨修订克隆或明确用户改写时保持
 
 定向补查导出还包含基准修订、调查条件、调查问题、该轮费用上限与沿用评价数；比较结果由相同存储投影计算，不能改写历史报告。
 
+### 13.1 v0.3 交接包与摘录范围
+
+方案决定与清单注记是独立于研究快照的追加记录。交接 JSON 的 `handoff` 记录固定研究修订、事件游标、最后相关注记时间、当前决策状态/理由/历史，以及所选方案的清单项、注记版本和历史注记。当前无选择时状态为 `PENDING_DECISION`；旧修订选择需要重新确认时为 `NEEDS_RECONFIRMATION`。历史选择与检查记录不得投影成当前有效记录。注记状态只表示人工准备进度，不代表实现或验收。
+
+导出 API 可按 `revision` 与 `annotation_cursor` 指定历史组合。事件游标是该 Job 事件表中最大 rowid 上限；每条注记只在其关联 Research Event 不超过游标时纳入。研究视图、游标和注记在同一 SQLite 事务读取；Markdown 与 JSON 使用同一个冻结对象。导出记录游标与注记时间，便于复现。
+
+当 `match_context` 指向现存 Evidence 时，导出可附其保存原文中按 `excerpt_ranges` 切出的 `supplied_excerpt`、读取时间和来源版本。区间以 Unicode 码点计数，为半开范围，实际摘录与模型当时收到的文本一致；缺少范围或 Evidence 的旧记录明确标为无法重建。费用没有完整记录时显示“未知”，不能把已知部分费用当作完整账单。
+
 ## 14. 机器不变量与测试
 
 - 核心对象 ID 唯一，关联对象存在，Capability 归属 Resource。
@@ -183,3 +191,27 @@ Condition 可包含 `lineage_id`，跨修订克隆或明确用户改写时保持
 ## 15. 数据层完成标准
 
 在真实研究任务中，系统能够保存全部必要对象与引用、恢复、增量修订、查看证据和从当前数据生成一致的 Markdown/JSON；受控负向测试能拦截虚假 `VERIFIED`、非法状态与过期评价。存储引擎选择由 06 与 M1 验证决定。
+
+## 16. 增量用户注记契约（P0，2026-10-13）
+
+本节定义 v0.3 方案决定与采用前检查的数据语义。注记不是六种研究对象，不进入模型可信输出，不覆盖任何研究快照。注记读取可附在 UI 投影中；研究快照原始 JSON 保持字节内容不变。
+
+### 16.1 方案决定
+
+方案决定采用独立的追加式记录，逻辑字段为：`decision_id`、`job_id`、`source_revision`、`proposal_id`、`action`、`reason`、`annotation_version`、`created_at`。`action` 仅允许 `SELECT`、`UPDATE_REASON`、`WITHDRAW`。记录倾向时 `proposal_id` 必填、理由可空；改理由时必须仍有有效决定并绑定同一修订/方案；撤回记录保留原方案 ID 和理由。每次写入的版本在该 Job 范围内严格递增；当前有效决定是最新非撤回记录且其 `source_revision` 等于所读修订。新修订没有当前决定，上一修订最近决定作为待重新确认提示单独返回。
+
+Proposal 必须通过指定修订快照验证；仅当该快照中的 Proposal `validity_status=READY_FOR_REVIEW` 才允许 `SELECT`。跨 Job ID、不存在/无效 Proposal、未完成修订及陈旧修订均拒绝。历史方案名和资源仅从绑定快照解析。决定不表示条件满足、目标已实现或已授权执行。
+
+### 16.2 采用前检查投影与人工注记
+
+清单项是确定性生成的只读投影，不复制成 Evidence 或 Assessment。项至少保留：稳定 `item_id`、`source_revision`、`item_type`、关联的 Condition/Proposal/Assessment/Resource/Evidence ID、当前满足状态、缺口、现有验收方式、建议下一步以及依据指纹 `basis_hash`。自由文字的集成工作、补充工作和风险亦可成为清单项并保留 Proposal ID；不得把没有明确条件来源的工作假称目标要求。
+
+每条用户注记独立保存 `job_id`、`source_revision`、`item_id`、`basis_hash`、工作状态、用户备注、注记版本和时间。工作状态为 `PENDING`（待检查）、`RECORDED`（已记录）、`FOLLOW_UP`（需跟进）；它只反映用户记录进度。Checklist 注记按 Job + 修订 + item ID 读取，版本在该项内递增。
+
+目标、Condition、Assessment、Proposal 或其依据变化后，仍可读取旧修订注记；当前投影不得将其当作新修订进度。相同修订内依据指纹变化也标记待复核，先前记录保留供追溯。缺失验收方式使用显式空值并显示“待明确标准”，不推测阈值。备注不能自动构造测试上下文、观察结果、`TEST_OR_REVIEW` Evidence，也不能改变 `VERIFIED`、`SUPPORTED`、`ReviewStatus` 或 Proposal 有效性。
+
+### 16.3 一致性与 API 投影
+
+方案注记与对应 Research Event 在单一事务内追加；检查注记与其版本更新在单一事务内追加。写请求携带 `expected_revision` 和期望注记版本，写前校验研究仍为 `COMPLETED`、无活动执行者及所有对象归属。陈旧版本返回冲突且不落部分数据。GET 投影须从同一数据库一致读取取得研究修订、Proposal 快照和最新注记。
+
+API 逻辑入口为：`GET /api/jobs/{id}/decision?revision=N`、`PUT /api/jobs/{id}/decision`、`GET /api/jobs/{id}/adoption-checklist?revision=N`、`PUT /api/jobs/{id}/adoption-checklist/{item_id}`。后两个为 P2 交付。现有 `/api/jobs/{id}` 的研究结果 schema 与历史快照不改写。

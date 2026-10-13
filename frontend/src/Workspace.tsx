@@ -7,6 +7,8 @@ import {
 import { GoalReviewView } from "./GoalReview";
 import { TargetedResearchDialog } from "./TargetedResearch";
 import { RevisionCompareView } from "./RevisionCompare";
+import { ProposalDecision } from "./ProposalDecision";
+import { AdoptionChecklist } from "./AdoptionChecklist";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -188,6 +190,7 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
   const [selA, setSelA] = useState<string | null>(null);
   const [researchConditions, setResearchConditions] = useState<string[] | null>(null);
   const [draftCount, setDraftCount] = useState(0);
+  const [decisionRefresh, setDecisionRefresh] = useState(0);
   const cursorRef = useRef(0);
 
   const load = useCallback(async () => {
@@ -309,7 +312,7 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
                 catch (error) { toast.error(String(error)); }
               }}>
               <option value="current">当前修订</option>
-              {revisions.map((r) => <option key={r.revision} value={r.revision}>历史修订 {r.revision}</option>)}
+              {revisions.filter((r) => r.revision !== job.revision).map((r) => <option key={r.revision} value={r.revision}>历史修订 {r.revision}</option>)}
             </select>}
             {historyJob && <Badge variant="outline">历史快照 · 只读</Badge>}
             {revisions.some(r => r.revision < job.revision) && <Button size="sm" variant={tab === "changes" ? "default" : "outline"} onClick={() => onTabChange("changes")}>修订变化</Button>}
@@ -461,6 +464,8 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
           {job.proposal ? <ProposalView key={job.proposal.id} p={job.proposal} conditions={job.conditions} onResearch={!historyJob && job.status === "COMPLETED" ? id => setResearchConditions([id]) : undefined} onTrace={() => { setSelA(job.proposal?.assessment_ids?.[0] ?? null); onTabChange("match"); }} /> : (
             <EmptyTab label="No proposal yet" hint="Research still in progress or no credible path found." />
           )}
+          <ProposalDecision key={`decision:${job.id}:${job.revision}:${historyJob ? "history" : "current"}`} jobId={job.id} revision={job.revision} status={job.status} proposal={job.proposal} readOnly={!!historyJob} onChanged={() => setDecisionRefresh((value) => value + 1)} />
+          <AdoptionChecklist key={`checklist:${job.id}:${job.revision}:${historyJob ? "history" : "current"}`} jobId={job.id} revision={job.revision} status={job.status} readOnly={!!historyJob} refreshKey={decisionRefresh} />
         </TabsContent>
 
         <TabsContent value="conditions" className="mt-4">
@@ -493,9 +498,29 @@ export function Workspace({ jobId, onBack }: WorkspaceProps) {
                           </Badge>
                         </div>
                         {job.source_reviews?.[r.id] && <details className="mt-3 border-t pt-3 text-xs">
-                          <summary className="cursor-pointer text-muted-foreground">补充文档 · {job.source_reviews[r.id].documents.length} 份已读取</summary>
+                          <summary className="cursor-pointer text-muted-foreground">资料读取记录 · {job.source_reviews[r.id].documents.length} 份补充文档</summary>
                           <p className="mt-2 leading-relaxed text-muted-foreground">记录实际读取的原文；能力、许可适用性与集成仍需逐项判断。</p>
                           <ul className="mt-2 space-y-2">{job.source_reviews[r.id].documents.map(d => <li key={d.url}><a href={d.url} target="_blank" rel="noreferrer" className="break-all text-primary hover:underline">{d.category} <ExternalLink className="inline h-3 w-3" /></a>{d.version && <span className="ml-2 font-mono text-[10px] text-muted-foreground">{d.version.slice(0, 12)}</span>}</li>)}</ul>
+                          {job.source_reviews[r.id].match_context?.length ? (
+                            <div className="mt-3 space-y-3">
+                              {job.source_reviews[r.id].match_context!.map((context) => {
+                                const sourceEvidence = job.evidence.find((item) => item.id === context.evidence_id);
+                                const sourceText = sourceEvidence?.excerpt_or_summary ?? "";
+                                const sourceCharacters = Array.from(sourceText);
+                                const suppliedExcerpt = sourceEvidence && context.excerpt_ranges.length > 0 && context.excerpt_ranges.every(([start, end]) => start >= 0 && end >= start && end <= sourceCharacters.length)
+                                  ? context.excerpt_ranges.map(([start, end]) => sourceCharacters.slice(start, end).join("")).join("\n[省略；以下为原文片段]\n")
+                                  : null;
+                                return <div key={context.evidence_id} className="min-w-0 rounded-md bg-muted/40 p-3">
+                                  <a href={context.url} target="_blank" rel="noreferrer" className="break-all text-primary hover:underline">模型读取的来源 <ExternalLink className="inline h-3 w-3" /></a>
+                                  <p className="mt-1 text-muted-foreground">保存 {context.stored_characters} 码点，实际提供 {context.supplied_characters} 码点 · 区间 {context.excerpt_ranges.map(([start, end]) => `[${start}, ${end})`).join("、") || "旧记录未保存"}</p>
+                                  <p className="mt-1 text-muted-foreground">读取于 {sourceEvidence?.retrieved_at ?? "旧记录未保存"} · 版本 {sourceEvidence?.source_version || "UNKNOWN"}</p>
+                                  {suppliedExcerpt !== null ? <pre className="mt-2 max-h-52 overflow-auto whitespace-pre-wrap break-words rounded border bg-background p-2 font-sans text-[11px] leading-relaxed">{suppliedExcerpt}</pre>
+                                    : <p className="mt-2 text-warning">无法重建实际摘录；旧记录缺少范围或保存文本。</p>}
+                                  {context.is_partial && <p className="mt-1 text-warning">这是所选片段，不能据此判断整份资料不存在某项能力。</p>}
+                                </div>;
+                              })}
+                            </div>
+                          ) : <p className="mt-3 leading-relaxed text-warning">旧记录未保存模型实际收到的摘录范围，无法确认具体阅读片段。</p>}
                           {job.source_reviews[r.id].notes.map((note, i) => <p key={i} className="mt-2 leading-relaxed text-warning">{note}</p>)}
                         </details>}
                       </div>

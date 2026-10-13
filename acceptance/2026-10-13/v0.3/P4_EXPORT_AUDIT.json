@@ -1,0 +1,32 @@
+{
+  "verdict": "PASS",
+  "job_id": "job_99d6ae93275f4571",
+  "revision": 2,
+  "status": "COMPLETED",
+  "json": {
+    "path": "P4_HANDOFF.json",
+    "bytes": 1053702,
+    "sha256": "386e127558156eb3f8f20f31590aba940013c7b9dec732fa467d3ad5e3ab62b4",
+    "parseable": true,
+    "conditions": 10,
+    "resources": 8,
+    "assessments": 80,
+    "evidence": 135,
+    "selected_revision": 2,
+    "decision_annotation_version": 2,
+    "checklist_items": 27,
+    "follow_up_notes": 1
+  },
+  "markdown": {
+    "path": "P4_HANDOFF.md",
+    "bytes": 125464,
+    "sha256": "8943d8512a58154296c5cb8efd92f13653ad6409a674ca708bc7cfba8b16a355",
+    "selected_proposal_title_matches_json": true,
+    "decision_reason_matches_json": true,
+    "follow_up_note_matches_json": true
+  },
+  "limitations": [
+    "The selected proposal records a research direction only; it is not implementation approval.",
+    "The user note remains a follow-up annotation and does not create Evidence or VERIFIED status."
+  ]
+}

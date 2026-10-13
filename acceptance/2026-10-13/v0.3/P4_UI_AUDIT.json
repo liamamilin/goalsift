@@ -1,0 +1,26 @@
+{
+  "verdict": "PASS",
+  "url": "http://127.0.0.1:8012/#/jobs/job_99d6ae93275f4571",
+  "isolation": "temporary port and temporary database; the user's existing port 8000 tab and job were left untouched",
+  "viewports": [
+    {
+      "width": 1280,
+      "height": 720,
+      "result": "proposal and right-side goal, scope, and usage panels visible; long proposal text remains readable"
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "result": "narrow layout reviewed; no horizontal page movement after the fix"
+    }
+  ],
+  "verified_interactions": [
+    "open historical revision as read-only",
+    "reload back to current revision",
+    "observe prior decision awaiting reconfirmation after refinement",
+    "save one FOLLOW_UP checklist annotation without changing research status",
+    "open Markdown and JSON handoff exports"
+  ],
+  "responsive_fix": "Added overflow-x-hidden to the main workspace scroller after the 390px viewport exposed a horizontal scrollbar; rerendered and rechecked both viewports.",
+  "screenshots": "Desktop and narrow-screen views were visually reviewed through the browser capture tool during this session. The tool exposes captures in-session but provides no supported workspace save path, so no screenshot binary is attached."
+}

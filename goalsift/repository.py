@@ -92,6 +92,22 @@ CREATE TABLE IF NOT EXISTS revision_snapshots (
   job_id TEXT, revision INTEGER, data TEXT NOT NULL, created_at TEXT,
   PRIMARY KEY(job_id, revision)
 );
+CREATE TABLE IF NOT EXISTS proposal_decisions (
+  decision_id TEXT PRIMARY KEY, job_id TEXT NOT NULL, source_revision INTEGER NOT NULL,
+  proposal_id TEXT NOT NULL, action TEXT NOT NULL, reason TEXT NOT NULL,
+  annotation_version INTEGER NOT NULL, created_at TEXT NOT NULL,
+  UNIQUE(job_id, annotation_version)
+);
+CREATE INDEX IF NOT EXISTS idx_proposal_decisions_job_revision
+  ON proposal_decisions(job_id, source_revision, annotation_version);
+CREATE TABLE IF NOT EXISTS checklist_annotations (
+  annotation_id TEXT PRIMARY KEY, job_id TEXT NOT NULL, source_revision INTEGER NOT NULL,
+  item_id TEXT NOT NULL, basis_hash TEXT NOT NULL, status TEXT NOT NULL,
+  notes TEXT NOT NULL, annotation_version INTEGER NOT NULL, created_at TEXT NOT NULL,
+  UNIQUE(job_id, source_revision, item_id, annotation_version)
+);
+CREATE INDEX IF NOT EXISTS idx_checklist_annotations_item
+  ON checklist_annotations(job_id, source_revision, item_id, annotation_version);
 """
 
 
@@ -481,6 +497,47 @@ class Repository:
         r = self._conn.execute("SELECT MAX(rowid) FROM events WHERE job_id=?", (job_id,)).fetchone()
         return r[0] or 0
 
+    @synchronized
+    def annotation_records_at_event_cursor(self, job_id: str, cursor: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Return user annotations whose append-only audit event is at/before cursor."""
+        decision_ids: set[str] = set()
+        checklist_ids: set[str] = set()
+        rows = self._conn.execute(
+            "SELECT action_type, status, related_object_ids FROM events "
+            "WHERE job_id=? AND rowid<=? AND action_type='REVISE' ORDER BY rowid",
+            (job_id, cursor),
+        ).fetchall()
+        for row in rows:
+            status = row["status"] or ""
+            if not (status.startswith("PROPOSAL_") or status.startswith("ADOPTION_CHECK_")):
+                continue
+            try:
+                related = json.loads(row["related_object_ids"] or "[]")
+            except (TypeError, json.JSONDecodeError):
+                continue
+            if not isinstance(related, list) or len(related) < 2:
+                continue
+            if status.startswith("PROPOSAL_"):
+                decision_ids.add(str(related[-1]))
+            else:
+                checklist_ids.add(str(related[-1]))
+
+        def records(table: str, key: str, ids: set[str]) -> list[dict[str, Any]]:
+            if not ids:
+                return []
+            placeholders = ",".join("?" for _ in ids)
+            found = self._conn.execute(
+                f"SELECT * FROM {table} WHERE job_id=? AND {key} IN ({placeholders})",
+                (job_id, *sorted(ids)),
+            ).fetchall()
+            return [dict(row) for row in found]
+
+        decisions = records("proposal_decisions", "decision_id", decision_ids)
+        checklist = records("checklist_annotations", "annotation_id", checklist_ids)
+        decisions.sort(key=lambda r: r["annotation_version"])
+        checklist.sort(key=lambda r: (r["source_revision"], r["item_id"], r["annotation_version"]))
+        return decisions, checklist
+
     # --- M4: crash recovery, revisions, invalidation propagation --------
 
     @synchronized
@@ -708,6 +765,57 @@ class Repository:
                 "SELECT data FROM revision_snapshots WHERE job_id=? AND revision=?", (job_id, revision)
             ).fetchone()
             return json.loads(row[0]) if row else None
+
+    @synchronized
+    def proposal_decisions(self, job_id: str) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            "SELECT * FROM proposal_decisions WHERE job_id=? ORDER BY annotation_version",
+            (job_id,),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    @synchronized
+    def latest_proposal_decision_version(self, job_id: str) -> int:
+        row = self._conn.execute(
+            "SELECT MAX(annotation_version) FROM proposal_decisions WHERE job_id=?", (job_id,)
+        ).fetchone()
+        return int(row[0] or 0)
+
+    @synchronized
+    def append_proposal_decision(self, decision: dict[str, Any]) -> None:
+        with self.transaction() as conn:
+            conn.execute(
+                "INSERT INTO proposal_decisions VALUES (?,?,?,?,?,?,?,?)",
+                (decision["decision_id"], decision["job_id"], decision["source_revision"],
+                 decision["proposal_id"], decision["action"], decision["reason"],
+                 decision["annotation_version"], decision["created_at"]),
+            )
+
+    @synchronized
+    def checklist_annotations(self, job_id: str, revision: int) -> list[dict[str, Any]]:
+        rows = self._conn.execute(
+            "SELECT * FROM checklist_annotations WHERE job_id=? AND source_revision=? ORDER BY item_id, annotation_version",
+            (job_id, revision),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    @synchronized
+    def latest_checklist_annotation(self, job_id: str, revision: int, item_id: str) -> dict[str, Any] | None:
+        row = self._conn.execute(
+            "SELECT * FROM checklist_annotations WHERE job_id=? AND source_revision=? AND item_id=? ORDER BY annotation_version DESC LIMIT 1",
+            (job_id, revision, item_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+    @synchronized
+    def append_checklist_annotation(self, annotation: dict[str, Any]) -> None:
+        with self.transaction() as conn:
+            conn.execute(
+                "INSERT INTO checklist_annotations VALUES (?,?,?,?,?,?,?,?,?)",
+                (annotation["annotation_id"], annotation["job_id"], annotation["source_revision"],
+                 annotation["item_id"], annotation["basis_hash"], annotation["status"],
+                 annotation["notes"], annotation["annotation_version"], annotation["created_at"]),
+            )
 
     @synchronized
     def list_revisions(self, job_id: str) -> list[dict]:

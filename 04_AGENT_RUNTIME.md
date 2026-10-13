@@ -164,3 +164,21 @@ SSE 可以展示真实事件，断线后从持久状态与最后事件 ID 恢复
 - 至少一个 Live 研究真正执行模型、搜索、来源读取；无凭据则 BLOCKED，不得 PASS。
 
 **Runtime 的成功不是写出漂亮研究报告，而是可靠地收集、校验、积累并修订研究成果。**
+
+## 13. 增量注记操作（P0，2026-10-13）
+
+方案选择和采用前检查是研究完成后的人工注记入口，不启动 Controller，不调用模型或搜索工具，不更改 Job 生命周期。它们可在 Job 为 `COMPLETED` 且没有活动运行者时写入；写入前在同一 SQLite 事务内校验 `expected_revision`、`expected_annotation_version` 及对象归属。冲突返回 HTTP 409，缺失任务/方案返回 404/422，事务失败整体回滚。
+
+方案决定每次保存追加一条带单调注记版本的审计记录，动作仅为 `SELECT`、`UPDATE_REASON`、`WITHDRAW`。选择时 Proposal ID 必须与指定研究修订不可变快照中的当前有效 Proposal 一致；撤回保留原决定和理由。事件与注记在同一事务写入。一次请求携带旧修订或旧注记版本时拒绝提交，客户端刷新后由用户决定是否重试；服务重试不重复添加事件。
+
+新研究修订只显示上一条方案决定为“待重新确认”，不自动复制为当前决定。历史决定只读取其保存修订的快照以解析标题与资源，不解析当前资源目录。当前无有效 Proposal 时不能创建选择，可查看旧决定并继续既有研究流程。
+
+检查项是确定性投影，检查进度/备注是单独的追加式人工注记，按研究修订、清单项 ID、依据指纹及注记版本关联。修改注记不创建 Evidence，不改变 `AssessmentStatus` 或 `ReviewStatus`，不触发 `VERIFY`。如果当前修订或项目依据与保存依据不一致，显示待复核并要求用户明确重新记录；不能把旧 `RECORDED` 当作新修订已通过。读取接口在同一一致读中取研究视图、决定/检查注记和当前版本号，避免拼接不同修订。
+
+P0 页面动作与后端入口：读取当前/历史决定 `GET /api/jobs/{id}/decision?revision=N`；保存/改理由/撤回 `PUT /api/jobs/{id}/decision`；读取确定性检查投影及注记 `GET /api/jobs/{id}/adoption-checklist?revision=N`；更新某项注记 `PUT /api/jobs/{id}/adoption-checklist/{item_id}`。后两项在 P2 实现。读操作不产生模型费用。除生命周期限制外不新增 Job/Assessment 状态。
+
+### 14. 导出修订与注记截止（P3，2026-10-13）
+
+交接导出入口为 `GET /api/jobs/{id}/export?fmt=markdown|json&revision=N&annotation_cursor=C`。省略 `revision` 使用当前研究投影，省略 `annotation_cursor` 使用该任务当前最大事件游标；显式游标必须在 `0..max_event_rowid(job)` 范围内，否则返回 HTTP 400。修订与游标对应的研究视图、决定、检查注记在一致 SQLite 事务中组合。只纳入游标前已有审计事件的注记，并以 `source_revision` 限定研究修订；返回包包含事件游标和最后相关注记时间，以支持历史重现。
+
+状态 `SELECTED` 表示当前修订已记录倾向；`PENDING_DECISION` 表示尚未决定；`NEEDS_RECONFIRMATION` 表示只在先前修订有选择。只有当前修订选择有效时才附当前检查清单；历史注记作为历史保留，不能作为当前检查结果。Markdown 和 JSON 必须从同一冻结数据生成。导出不调用模型，不将人工注记解释为执行或 `VERIFIED`。

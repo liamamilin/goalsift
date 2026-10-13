@@ -24,6 +24,10 @@ from .repository import Repository
 from .search_adapter import SearchAdapter
 from .security import redact_secrets
 from .paths import resolve_under_root
+from .adoption import (
+    ChecklistItemUpdate, DecisionConflict, ProposalDecisionUpdate,
+    checklist_view, decision_view, save_checklist_item, save_decision,
+)
 load_env()
 
 class CreateJob(BaseModel):
@@ -142,6 +146,46 @@ def create_app(repository: Repository | None = None, llm=None, search=None):
         repo, _, _ = require(job_id)
         return repo.list_revisions(job_id)
 
+    @app.get('/api/jobs/{job_id}/decision')
+    def get_decision(job_id: str, revision: int | None = None):
+        repo, _, _ = require(job_id)
+        try:
+            return decision_view(repo, job_id, revision)
+        except KeyError:
+            raise HTTPException(404, '该修订尚无完成快照')
+
+    @app.put('/api/jobs/{job_id}/decision')
+    def put_decision(job_id: str, body: ProposalDecisionUpdate):
+        repo, _, _ = require(job_id)
+        try:
+            return save_decision(repo, job_id, body)
+        except KeyError:
+            raise HTTPException(404, '研究任务不存在')
+        except DecisionConflict as exc:
+            raise HTTPException(409, str(exc))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc))
+
+    @app.get('/api/jobs/{job_id}/adoption-checklist')
+    def get_adoption_checklist(job_id: str, revision: int | None = None):
+        repo, _, _ = require(job_id)
+        try:
+            return checklist_view(repo, job_id, revision)
+        except KeyError:
+            raise HTTPException(404, '该修订尚无完成快照')
+
+    @app.put('/api/jobs/{job_id}/adoption-checklist/{item_id}')
+    def put_adoption_checklist_item(job_id: str, item_id: str, body: ChecklistItemUpdate):
+        repo, _, _ = require(job_id)
+        try:
+            return save_checklist_item(repo, job_id, item_id, body)
+        except KeyError:
+            raise HTTPException(404, '研究任务不存在')
+        except DecisionConflict as exc:
+            raise HTTPException(409, str(exc))
+        except ValueError as exc:
+            raise HTTPException(422, str(exc))
+
     @app.post('/api/jobs/{job_id}/review')
     async def review_goal(job_id: str, body: GoalReview):
         repo, ctrl, _ = require(job_id)
@@ -177,15 +221,25 @@ def create_app(repository: Repository | None = None, llm=None, search=None):
         return json.loads(redact_secrets(json.dumps(result, ensure_ascii=False)))
 
     @app.get('/api/jobs/{job_id}/export')
-    def export(job_id: str, fmt: str = 'markdown', revision: int | None = None):
+    def export(job_id: str, fmt: str = 'markdown', revision: int | None = None,
+               annotation_cursor: int | None = None):
         repo, _, job = require(job_id)
         if fmt not in ('json', 'markdown'): raise HTTPException(400, '格式必须是 markdown 或 json')
-        view = repo.current_view(job_id) if revision is None else repo.get_revision(job_id, revision)
-        if view is None: raise HTTPException(404, '修订不存在')
-        filename = f'goalsift-{job_id}-r{view["revision"]}'
-        headers = {'Content-Disposition': f'attachment; filename="{filename}.{"json" if fmt == "json" else "md"}"'}
-        if fmt == 'json': return JSONResponse(to_json(repo, job_id, view=view), headers=headers)
-        return PlainTextResponse(to_markdown(repo, job_id, view=view), headers=headers)
+        if annotation_cursor is not None and annotation_cursor < 0:
+            raise HTTPException(400, '注记游标不能小于 0')
+        with repo.transaction():
+            view = repo.current_view(job_id) if revision is None else repo.get_revision(job_id, revision)
+            if view is None: raise HTTPException(404, '修订不存在')
+            cursor = repo.max_event_rowid(job_id) if annotation_cursor is None else annotation_cursor
+            if cursor > repo.max_event_rowid(job_id): raise HTTPException(400, '注记游标超出该任务的事件范围')
+            try:
+                data = to_json(repo, job_id, view=view, annotation_cursor=cursor)
+            except ValueError as exc:
+                raise HTTPException(400, str(exc))
+            filename = f'goalsift-{job_id}-r{view["revision"]}'
+            headers = {'Content-Disposition': f'attachment; filename="{filename}.{"json" if fmt == "json" else "md"}"'}
+            if fmt == 'json': return JSONResponse(data, headers=headers)
+            return PlainTextResponse(to_markdown(repo, job_id, view=view, data=data), headers=headers)
 
     @app.get('/api/jobs/{job_id}/events/history')
     def event_history(job_id: str, after: int = 0):

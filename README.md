@@ -4,7 +4,7 @@
 
 支持研究暂停/恢复/取消、关键问题澄清、完成后的增量修订、历史快照、Markdown/JSON 导出，以及持续保存的事件、费用与用量。复用已有前端设计和 React/Radix/Driver.js、FastAPI、Pydantic AI、SQLite、DeepSeek、Exa。
 
-本次验收见 [FINAL_ACCEPTANCE_REPORT.md](FINAL_ACCEPTANCE_REPORT.md)；定向补查与修订对比详见 [专项报告](acceptance/2026-10-11/targeted-diff/TARGETED_DIFF_REPORT.md)，来源摘录与引用边界修复见 [质量报告](acceptance/2026-10-12/excerpts/EXCERPT_REPORT.md)。旧提交的安全测试曾包含真实凭据，首次 GitHub 发布前已清理可达历史并保留 12 次提交；本地恢复归档仍保留原历史，不能上传。建议更换旧 DeepSeek/Exa key。原 M0–M5 报告保留为历史记录，当前实现以本次报告和源代码为准。
+本次验收见 [FINAL_ACCEPTANCE_REPORT.md](FINAL_ACCEPTANCE_REPORT.md)；v0.3.0 的方案决定、采用前检查和交接报告位于 [验收目录](acceptance/2026-10-13/v0.3/)。定向补查与修订对比详见 [专项报告](acceptance/2026-10-11/targeted-diff/TARGETED_DIFF_REPORT.md)，来源摘录与引用边界修复见 [质量报告](acceptance/2026-10-12/excerpts/EXCERPT_REPORT.md)。旧提交的安全测试曾包含真实凭据，首次 GitHub 发布前已清理可达历史并保留 12 次提交；本地恢复归档仍保留原历史，不能上传。建议更换旧 DeepSeek/Exa key。原 M0–M5 报告保留为历史记录，当前实现以本次报告和源代码为准。
 
 ## 安装与启动
 
@@ -73,4 +73,6 @@ make test
 
 ## 代码与规格
 
-`goalsift/` 为后端、预算、工具适配器、SQLite 和导出；`frontend/` 为用户界面；`tests/` 为隔离测试；`acceptance/2026-10-10/` 和 `acceptance/2026-10-11/` 保存各轮脱敏证据。`AGENTS.md` 及 01–07 文档定义产品与验收合同。
+v0.3.0 的方案选择记录、采用前检查和交接导出已通过 P0–P4 验收。两轮隔离 Live 测试累计新增记录费用 `$0.1332667`；发布版本、浏览器和恢复证据见 [P4 验收报告](acceptance/2026-10-13/v0.3/P4_REPORT.md)。计划和费用台账见 [开发计划 §13](07_DEVELOPMENT_PLAN.md#13-下一版本增量开发计划2026-10-13)。P3 的固定夹具样例见 `acceptance/2026-10-13/v0.3/P3_HANDOFF_EXAMPLE.md` 和 `.json`。
+
+`goalsift/` 为后端、预算、工具适配器、SQLite 和导出；`frontend/` 为用户界面；`tests/` 为隔离测试；`acceptance/` 保存各轮验收证据。`AGENTS.md` 及 01–07 文档定义产品与验收合同。

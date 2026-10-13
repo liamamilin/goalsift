@@ -44,6 +44,8 @@ export interface EvidenceItem {
   source_ref: string;
   locator: string;
   excerpt_or_summary: string;
+  retrieved_at?: string;
+  source_version?: string | null;
 }
 
 export interface AssessmentItem {
@@ -70,6 +72,116 @@ export interface ProposalItem {
   assessment_ids?: string[];
   uncovered_conditions?: string[];
   condition_coverage?: string[];
+}
+
+export interface ProposalDecisionRecord {
+  decision_id: string;
+  job_id: string;
+  source_revision: number;
+  proposal_id: string;
+  action: "SELECT" | "UPDATE_REASON" | "WITHDRAW";
+  reason: string;
+  annotation_version: number;
+  created_at: string;
+  active: boolean;
+  needs_reconfirmation: boolean;
+  proposal: { id: string; title: string; summary: string; resource_ids: string[]; resources: ResourceItem[] } | null;
+}
+
+export interface ProposalDecisionView {
+  job_id: string;
+  revision: number;
+  current_revision: number;
+  read_only: boolean;
+  annotation_version: number;
+  proposal_available: boolean;
+  decision: ProposalDecisionRecord | null;
+  previous_decision: ProposalDecisionRecord | null;
+  history: ProposalDecisionRecord[];
+}
+
+export async function getProposalDecision(id: string, revision?: number): Promise<ProposalDecisionView> {
+  const r = await fetch(`${API}/api/jobs/${id}/decision${revision ? `?revision=${revision}` : ""}`);
+  if (!r.ok) throw new Error("无法读取方案决定，请刷新后重试");
+  return r.json();
+}
+
+export async function saveProposalDecision(id: string, body: {
+  expected_revision: number;
+  expected_annotation_version: number;
+  action: ProposalDecisionRecord["action"];
+  proposal_id?: string;
+  reason?: string;
+}): Promise<ProposalDecisionView> {
+  const r = await fetch(`${API}/api/jobs/${id}/decision`, {
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const detail = await r.json().catch(() => null);
+    throw new Error(typeof detail?.detail === "string" ? detail.detail : "方案决定未保存，请刷新后重试");
+  }
+  return r.json();
+}
+
+export interface AdoptionCheckItem {
+  item_id: string;
+  item_type: "condition" | "integration" | "new_work" | "risk";
+  title: string;
+  group_label?: string;
+  source_revision: number;
+  condition_id: string | null;
+  proposal_id: string;
+  obligation: Condition["obligation"] | null;
+  dimension: Condition["dimension"] | null;
+  assessment_status: AssessmentItem["status"] | null;
+  assessment_statuses: AssessmentItem["status"][];
+  assessments: AssessmentItem[];
+  resources: ResourceItem[];
+  evidence: EvidenceItem[];
+  verification_method: string | null;
+  gaps: string[];
+  next_step: string;
+  basis_hash: string;
+  status: "PENDING" | "RECORDED" | "FOLLOW_UP";
+  notes: string;
+  annotation_version: number;
+  needs_review: boolean;
+  previous_annotation: {status: AdoptionCheckItem["status"]; notes: string; basis_hash: string; annotation_version: number} | null;
+}
+
+export interface AdoptionChecklistView {
+  job_id: string;
+  revision: number;
+  current_revision: number;
+  read_only: boolean;
+  selection_required: boolean;
+  reason: string | null;
+  proposal_id: string | null;
+  proposal_title: string | null;
+  items: AdoptionCheckItem[];
+}
+
+export async function getAdoptionChecklist(id: string, revision?: number): Promise<AdoptionChecklistView> {
+  const r = await fetch(`${API}/api/jobs/${id}/adoption-checklist${revision ? `?revision=${revision}` : ""}`);
+  if (!r.ok) throw new Error("无法读取采用前检查清单，请刷新后重试");
+  return r.json();
+}
+
+export async function saveAdoptionCheckItem(id: string, itemId: string, body: {
+  expected_revision: number;
+  expected_annotation_version: number;
+  basis_hash: string;
+  status: AdoptionCheckItem["status"];
+  notes: string;
+}): Promise<AdoptionChecklistView> {
+  const r = await fetch(`${API}/api/jobs/${id}/adoption-checklist/${encodeURIComponent(itemId)}`, {
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const detail = await r.json().catch(() => null);
+    throw new Error(typeof detail?.detail === "string" ? detail.detail : "检查记录未保存，请刷新后重试");
+  }
+  return r.json();
 }
 
 export interface JobResult {
@@ -192,8 +304,11 @@ export async function sendInput(id: string, text: string): Promise<void> {
   if (!r.ok) throw new Error(`input failed: ${r.status} ${await r.text()}`);
 }
 
-export function exportUrl(id: string, fmt: "markdown" | "json", revision?: number): string {
-  return `${API}/api/jobs/${id}/export?fmt=${fmt}${revision ? `&revision=${revision}` : ""}`;
+export function exportUrl(id: string, fmt: "markdown" | "json", revision?: number, annotationCursor?: number): string {
+  const params = new URLSearchParams({fmt});
+  if (revision !== undefined) params.set("revision", String(revision));
+  if (annotationCursor !== undefined) params.set("annotation_cursor", String(annotationCursor));
+  return `${API}/api/jobs/${id}/export?${params.toString()}`;
 }
 
 export interface Settings {

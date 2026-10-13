@@ -1,0 +1,508 @@
+{
+  "id": "job_c76fe697d88f48fb",
+  "status": "COMPLETED",
+  "revision": 1,
+  "original_request": "隔离浏览器验收：显示状态信息并检查来源摘录",
+  "goal": null,
+  "conditions": [
+    {
+      "id": "condition_p3_ui",
+      "job_id": "job_c76fe697d88f48fb",
+      "created_at": "2026-10-13T06:22:03.213244Z",
+      "updated_at": "2026-10-13T06:22:03.213245Z",
+      "statement": "必须显示清晰的运行状态",
+      "obligation": "REQUIRED",
+      "dimension": "FUNCTIONAL",
+      "origin": "固定 UI 验收",
+      "provenance": "SYSTEM_ASSUMED",
+      "lineage_id": null,
+      "source_refs": [],
+      "scope": null,
+      "verification_method": "在目标浏览器检查状态刷新",
+      "relations": [],
+      "validity_status": "ACTIVE",
+      "revision_created": 1
+    }
+  ],
+  "resources": [
+    {
+      "id": "resource_p3_ui",
+      "job_id": "job_c76fe697d88f48fb",
+      "created_at": "2026-10-13T06:22:03.213130Z",
+      "updated_at": "2026-10-13T06:22:03.213131Z",
+      "name": "固定 UI 测试资源",
+      "kind": "library",
+      "description": "用于验证只显示实际读取的资料摘录",
+      "canonical_source": "https://example.org/p3-fixture",
+      "source_references": [
+        "https://example.org/p3-fixture"
+      ],
+      "version_or_revision": "commit-abc123",
+      "availability": null,
+      "license_claim": "UNKNOWN",
+      "environment": null,
+      "discovery_status": "UNVERIFIED_LEAD",
+      "discovered_at": "2026-10-13T06:22:03.213132Z"
+    }
+  ],
+  "capabilities": [],
+  "evidence": [
+    {
+      "id": "evidence_p3_ui",
+      "job_id": "job_c76fe697d88f48fb",
+      "created_at": "2026-10-13T06:22:03.213177Z",
+      "updated_at": "2026-10-13T06:22:03.213178Z",
+      "claim": "固定资料摘录",
+      "source_type": "OFFICIAL_DOC",
+      "source_ref": "https://example.org/p3-fixture",
+      "locator": "README",
+      "excerpt_or_summary": "前言🙂状态信息与运行情况",
+      "retrieved_at": "2026-10-13T02:03:04Z",
+      "source_version": "commit-abc123",
+      "collection_method": "",
+      "stance": "CONTEXT",
+      "verification_method": null,
+      "test_context": null,
+      "observed_result": null
+    }
+  ],
+  "assessments": [
+    {
+      "id": "assessment_p3_ui",
+      "job_id": "job_c76fe697d88f48fb",
+      "created_at": "2026-10-13T06:22:03.213290Z",
+      "updated_at": "2026-10-13T06:22:03.213290Z",
+      "condition_id": "condition_p3_ui",
+      "resource_ids": [
+        "resource_p3_ui"
+      ],
+      "capability_ids": [],
+      "context": "",
+      "status": "SUPPORTED",
+      "evidence_ids": [
+        "evidence_p3_ui"
+      ],
+      "explanation": "固定测试夹具来源提供了有限支持",
+      "gaps": [
+        "仍需目标环境实测"
+      ],
+      "assumptions": [],
+      "review_status": "CURRENT",
+      "revision_evaluated": 1
+    }
+  ],
+  "proposal": {
+    "id": "proposal_p3_ui",
+    "job_id": "job_c76fe697d88f48fb",
+    "created_at": "2026-10-13T06:22:03.213333Z",
+    "updated_at": "2026-10-13T06:22:03.213333Z",
+    "title": "隔离 UI 测试方案",
+    "summary": "用于确认方案理由、采用前检查与来源范围的真实渲染。",
+    "resource_ids": [
+      "resource_p3_ui"
+    ],
+    "assessment_ids": [
+      "assessment_p3_ui"
+    ],
+    "condition_coverage": [
+      "condition_p3_ui"
+    ],
+    "integration_work": [
+      "接入现有状态事件"
+    ],
+    "new_work": [
+      "在目标浏览器完成检查"
+    ],
+    "uncovered_conditions": [],
+    "risks": [
+      "许可证适用性仍未知"
+    ],
+    "assumptions": [],
+    "costs": {},
+    "recommendation_reason": "这条路径可复用现有资源",
+    "validity_status": "READY_FOR_REVIEW",
+    "revision_created": 1
+  },
+  "budget_usage": {},
+  "budget_config": {},
+  "checkpoint": "define",
+  "stopped_reason": null,
+  "delivery_notes": [],
+  "source_reviews": {
+    "resource_p3_ui": {
+      "documents": [
+        {
+          "url": "https://example.org/p3-fixture",
+          "category": "接口文档",
+          "version": "commit-abc123"
+        }
+      ],
+      "notes": [],
+      "match_context": [
+        {
+          "evidence_id": "evidence_p3_ui",
+          "url": "https://example.org/p3-fixture",
+          "stored_characters": 12,
+          "supplied_characters": 3,
+          "is_partial": true,
+          "excerpt_ranges": [
+            [
+              2,
+              5
+            ]
+          ],
+          "retrieved_at": "2026-10-13T02:03:04Z",
+          "source_version": "commit-abc123",
+          "excerpt_status": "AVAILABLE",
+          "excerpt_offset_unit": "Unicode code points; half-open [start, end)",
+          "supplied_excerpt": "🙂状态"
+        }
+      ]
+    }
+  },
+  "research_scope": null,
+  "reused_assessment_ids": [],
+  "exported_at": "2026-10-13T06:30:36.747446+00:00",
+  "handoff": {
+    "research_revision": 1,
+    "annotation_cursor": 3,
+    "annotation_cutoff_at": "2026-10-13T06:22:03.214760+00:00",
+    "status": "SELECTED",
+    "selection_required": false,
+    "decision_annotation_version": 1,
+    "decision": {
+      "decision_id": "decision_491076f812994306",
+      "job_id": "job_c76fe697d88f48fb",
+      "source_revision": 1,
+      "proposal_id": "proposal_p3_ui",
+      "action": "SELECT",
+      "reason": "方案符合当前质量目标",
+      "annotation_version": 1,
+      "created_at": "2026-10-13T06:22:03.214140+00:00",
+      "active": true,
+      "needs_reconfirmation": false,
+      "proposal": {
+        "id": "proposal_p3_ui",
+        "title": "隔离 UI 测试方案",
+        "summary": "用于确认方案理由、采用前检查与来源范围的真实渲染。",
+        "resource_ids": [
+          "resource_p3_ui"
+        ],
+        "resources": [
+          {
+            "id": "resource_p3_ui",
+            "job_id": "job_c76fe697d88f48fb",
+            "created_at": "2026-10-13T06:22:03.213130Z",
+            "updated_at": "2026-10-13T06:22:03.213131Z",
+            "name": "固定 UI 测试资源",
+            "kind": "library",
+            "description": "用于验证只显示实际读取的资料摘录",
+            "canonical_source": "https://example.org/p3-fixture",
+            "source_references": [
+              "https://example.org/p3-fixture"
+            ],
+            "version_or_revision": "commit-abc123",
+            "availability": null,
+            "license_claim": "UNKNOWN",
+            "environment": null,
+            "discovery_status": "UNVERIFIED_LEAD",
+            "discovered_at": "2026-10-13T06:22:03.213132Z"
+          }
+        ]
+      }
+    },
+    "previous_decision": null,
+    "decision_history": [
+      {
+        "decision_id": "decision_491076f812994306",
+        "job_id": "job_c76fe697d88f48fb",
+        "source_revision": 1,
+        "proposal_id": "proposal_p3_ui",
+        "action": "SELECT",
+        "reason": "方案符合当前质量目标",
+        "annotation_version": 1,
+        "created_at": "2026-10-13T06:22:03.214140+00:00",
+        "active": true,
+        "needs_reconfirmation": false,
+        "proposal": {
+          "id": "proposal_p3_ui",
+          "title": "隔离 UI 测试方案",
+          "summary": "用于确认方案理由、采用前检查与来源范围的真实渲染。",
+          "resource_ids": [
+            "resource_p3_ui"
+          ],
+          "resources": [
+            {
+              "id": "resource_p3_ui",
+              "job_id": "job_c76fe697d88f48fb",
+              "created_at": "2026-10-13T06:22:03.213130Z",
+              "updated_at": "2026-10-13T06:22:03.213131Z",
+              "name": "固定 UI 测试资源",
+              "kind": "library",
+              "description": "用于验证只显示实际读取的资料摘录",
+              "canonical_source": "https://example.org/p3-fixture",
+              "source_references": [
+                "https://example.org/p3-fixture"
+              ],
+              "version_or_revision": "commit-abc123",
+              "availability": null,
+              "license_claim": "UNKNOWN",
+              "environment": null,
+              "discovery_status": "UNVERIFIED_LEAD",
+              "discovered_at": "2026-10-13T06:22:03.213132Z"
+            }
+          ]
+        }
+      }
+    ],
+    "checklist": {
+      "active": true,
+      "proposal_id": "proposal_p3_ui",
+      "selection_required": false,
+      "items": [
+        {
+          "item_id": "check_e58154255e2dc171b4f5",
+          "item_type": "condition",
+          "title": "必须显示清晰的运行状态",
+          "source_revision": 1,
+          "condition_id": "condition_p3_ui",
+          "proposal_id": "proposal_p3_ui",
+          "obligation": "REQUIRED",
+          "dimension": "FUNCTIONAL",
+          "assessment_status": "SUPPORTED",
+          "assessment_statuses": [
+            "SUPPORTED"
+          ],
+          "assessments": [
+            {
+              "id": "assessment_p3_ui",
+              "job_id": "job_c76fe697d88f48fb",
+              "created_at": "2026-10-13T06:22:03.213290Z",
+              "updated_at": "2026-10-13T06:22:03.213290Z",
+              "condition_id": "condition_p3_ui",
+              "resource_ids": [
+                "resource_p3_ui"
+              ],
+              "capability_ids": [],
+              "context": "",
+              "status": "SUPPORTED",
+              "evidence_ids": [
+                "evidence_p3_ui"
+              ],
+              "explanation": "固定测试夹具来源提供了有限支持",
+              "gaps": [
+                "仍需目标环境实测"
+              ],
+              "assumptions": [],
+              "review_status": "CURRENT",
+              "revision_evaluated": 1
+            }
+          ],
+          "resources": [
+            {
+              "id": "resource_p3_ui",
+              "job_id": "job_c76fe697d88f48fb",
+              "created_at": "2026-10-13T06:22:03.213130Z",
+              "updated_at": "2026-10-13T06:22:03.213131Z",
+              "name": "固定 UI 测试资源",
+              "kind": "library",
+              "description": "用于验证只显示实际读取的资料摘录",
+              "canonical_source": "https://example.org/p3-fixture",
+              "source_references": [
+                "https://example.org/p3-fixture"
+              ],
+              "version_or_revision": "commit-abc123",
+              "availability": null,
+              "license_claim": "UNKNOWN",
+              "environment": null,
+              "discovery_status": "UNVERIFIED_LEAD",
+              "discovered_at": "2026-10-13T06:22:03.213132Z"
+            }
+          ],
+          "evidence": [
+            {
+              "id": "evidence_p3_ui",
+              "job_id": "job_c76fe697d88f48fb",
+              "created_at": "2026-10-13T06:22:03.213177Z",
+              "updated_at": "2026-10-13T06:22:03.213178Z",
+              "claim": "固定资料摘录",
+              "source_type": "OFFICIAL_DOC",
+              "source_ref": "https://example.org/p3-fixture",
+              "locator": "README",
+              "excerpt_or_summary": "前言🙂状态信息与运行情况",
+              "retrieved_at": "2026-10-13T02:03:04Z",
+              "source_version": "commit-abc123",
+              "collection_method": "",
+              "stance": "CONTEXT",
+              "verification_method": null,
+              "test_context": null,
+              "observed_result": null
+            }
+          ],
+          "verification_method": "在目标浏览器检查状态刷新",
+          "gaps": [
+            "仍需目标环境实测"
+          ],
+          "next_step": "在目标环境按验收方式实测：在目标浏览器检查状态刷新。来源支持不等于实际验收。",
+          "basis_hash": "0d6fa480688170e6519aee78bc6719ea326f081bdf5ed0affa69f5bcb58deb16",
+          "status": "RECORDED",
+          "notes": "浏览器验收尚未执行；先确认窄屏阅读没有横向溢出。",
+          "annotation_version": 1,
+          "needs_review": false,
+          "previous_annotation": null
+        },
+        {
+          "item_id": "check_57ba0c9b3db2f3e240a7",
+          "item_type": "integration",
+          "title": "接入现有状态事件",
+          "group_label": "集成工作",
+          "source_revision": 1,
+          "condition_id": null,
+          "proposal_id": "proposal_p3_ui",
+          "obligation": null,
+          "dimension": null,
+          "assessment_status": null,
+          "assessment_statuses": [],
+          "assessments": [],
+          "resources": [
+            {
+              "id": "resource_p3_ui",
+              "job_id": "job_c76fe697d88f48fb",
+              "created_at": "2026-10-13T06:22:03.213130Z",
+              "updated_at": "2026-10-13T06:22:03.213131Z",
+              "name": "固定 UI 测试资源",
+              "kind": "library",
+              "description": "用于验证只显示实际读取的资料摘录",
+              "canonical_source": "https://example.org/p3-fixture",
+              "source_references": [
+                "https://example.org/p3-fixture"
+              ],
+              "version_or_revision": "commit-abc123",
+              "availability": null,
+              "license_claim": "UNKNOWN",
+              "environment": null,
+              "discovery_status": "UNVERIFIED_LEAD",
+              "discovered_at": "2026-10-13T06:22:03.213132Z"
+            }
+          ],
+          "evidence": [],
+          "verification_method": null,
+          "gaps": [],
+          "next_step": "由使用者明确负责人、完成条件和检查结果；此记录不会执行该工作。",
+          "basis_hash": "e1995921dc22fe14b19004758b706209204f13cec66772d9355a2f6bbb9bffce",
+          "status": "PENDING",
+          "notes": "",
+          "annotation_version": 0,
+          "needs_review": false,
+          "previous_annotation": null
+        },
+        {
+          "item_id": "check_e02b347558712099dbdc",
+          "item_type": "new_work",
+          "title": "在目标浏览器完成检查",
+          "group_label": "补充工作",
+          "source_revision": 1,
+          "condition_id": null,
+          "proposal_id": "proposal_p3_ui",
+          "obligation": null,
+          "dimension": null,
+          "assessment_status": null,
+          "assessment_statuses": [],
+          "assessments": [],
+          "resources": [
+            {
+              "id": "resource_p3_ui",
+              "job_id": "job_c76fe697d88f48fb",
+              "created_at": "2026-10-13T06:22:03.213130Z",
+              "updated_at": "2026-10-13T06:22:03.213131Z",
+              "name": "固定 UI 测试资源",
+              "kind": "library",
+              "description": "用于验证只显示实际读取的资料摘录",
+              "canonical_source": "https://example.org/p3-fixture",
+              "source_references": [
+                "https://example.org/p3-fixture"
+              ],
+              "version_or_revision": "commit-abc123",
+              "availability": null,
+              "license_claim": "UNKNOWN",
+              "environment": null,
+              "discovery_status": "UNVERIFIED_LEAD",
+              "discovered_at": "2026-10-13T06:22:03.213132Z"
+            }
+          ],
+          "evidence": [],
+          "verification_method": null,
+          "gaps": [],
+          "next_step": "由使用者明确负责人、完成条件和检查结果；此记录不会执行该工作。",
+          "basis_hash": "c1ad559f4266bfa9d2523cfc4ab606fb9ec559db0223553cde7d760f67b28352",
+          "status": "PENDING",
+          "notes": "",
+          "annotation_version": 0,
+          "needs_review": false,
+          "previous_annotation": null
+        },
+        {
+          "item_id": "check_27c803548a5a093dc3bc",
+          "item_type": "risk",
+          "title": "许可证适用性仍未知",
+          "group_label": "风险与限制",
+          "source_revision": 1,
+          "condition_id": null,
+          "proposal_id": "proposal_p3_ui",
+          "obligation": null,
+          "dimension": null,
+          "assessment_status": null,
+          "assessment_statuses": [],
+          "assessments": [],
+          "resources": [
+            {
+              "id": "resource_p3_ui",
+              "job_id": "job_c76fe697d88f48fb",
+              "created_at": "2026-10-13T06:22:03.213130Z",
+              "updated_at": "2026-10-13T06:22:03.213131Z",
+              "name": "固定 UI 测试资源",
+              "kind": "library",
+              "description": "用于验证只显示实际读取的资料摘录",
+              "canonical_source": "https://example.org/p3-fixture",
+              "source_references": [
+                "https://example.org/p3-fixture"
+              ],
+              "version_or_revision": "commit-abc123",
+              "availability": null,
+              "license_claim": "UNKNOWN",
+              "environment": null,
+              "discovery_status": "UNVERIFIED_LEAD",
+              "discovered_at": "2026-10-13T06:22:03.213132Z"
+            }
+          ],
+          "evidence": [],
+          "verification_method": null,
+          "gaps": [],
+          "next_step": "由使用者明确负责人、完成条件和检查结果；此记录不会执行该工作。",
+          "basis_hash": "0acab03b9e76c39efc539352c07606e3e3142d978b9f7f82686e766441a10d32",
+          "status": "PENDING",
+          "notes": "",
+          "annotation_version": 0,
+          "needs_review": false,
+          "previous_annotation": null
+        }
+      ],
+      "history": [
+        {
+          "annotation_id": "checknote_4aa8653675e44d9f",
+          "job_id": "job_c76fe697d88f48fb",
+          "source_revision": 1,
+          "item_id": "check_e58154255e2dc171b4f5",
+          "basis_hash": "0d6fa480688170e6519aee78bc6719ea326f081bdf5ed0affa69f5bcb58deb16",
+          "status": "RECORDED",
+          "notes": "浏览器验收尚未执行；先确认窄屏阅读没有横向溢出。",
+          "annotation_version": 1,
+          "created_at": "2026-10-13T06:22:03.214760+00:00",
+          "title": "必须显示清晰的运行状态",
+          "check_type": "condition",
+          "basis_matches": true
+        }
+      ]
+    }
+  }
+}
